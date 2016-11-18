@@ -32,6 +32,7 @@ class Brush extends Component {
     tickFormatter: PropTypes.func,
 
     onChange: PropTypes.func,
+    onMove: PropTypes.func,
   };
 
   static defaultProps = {
@@ -171,7 +172,7 @@ class Brush extends Component {
 
   handleSlideMove(e) {
     const { slideMoveStartX, startX, endX } = this.state;
-    const { x, width, travellerWidth, onChange } = this.props;
+    const { x, width, travellerWidth, onChange, onMove } = this.props;
     let delta = e.pageX - slideMoveStartX;
 
     if (delta > 0) {
@@ -195,6 +196,7 @@ class Brush extends Component {
     }, () => {
       if (onChange) {
         onChange(newIndex);
+        onMove(newIndex);
       }
     });
   }
@@ -211,7 +213,7 @@ class Brush extends Component {
   handleTravellerMove(e) {
     const { brushMoveStartX, movingTravellerId } = this.state;
     const prevValue = this.state[movingTravellerId];
-    const { x, width, travellerWidth, onChange } = this.props;
+    const { x, width, travellerWidth, onChange, onMove } = this.props;
 
     const params = { startX: this.state.startX, endX: this.state.endX };
     let delta = e.pageX - brushMoveStartX;
@@ -231,6 +233,7 @@ class Brush extends Component {
     }, () => {
       if (onChange) {
         onChange(newIndex);
+        onMove(newIndex);
       }
     });
   }
