@@ -9,6 +9,13 @@
 
 ## Intro
 
+This is a temporary patched version of an older version of Recharts,
+All credit goes to the recharts team - 
+This will dissapear eventually so don't use - go to [Recharts](https://github.com/recharts/recharts) for the real thing.
+
+Thank you
+----------------
+
 Recharts is a **Redefined** chart library built with [React](https://facebook.github.io/react/) and [D3](http://d3js.org).
 
 The main purpose of this library is to help you to write charts in React applications without any pain. Main principles of Recharts are:

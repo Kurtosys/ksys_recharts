@@ -1,5 +1,5 @@
 {
-  "name": "recharts",
+  "name": "recharts-patched",
   "version": "0.18.0",
   "description": "React charts",
   "main": "lib/index",
@@ -35,13 +35,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/recharts/recharts.git"
+    "url": "https://github.com/jaquesgrobler/recharts.git"
   },
   "author": "recharts group",
   "bugs": {
-    "url": "https://github.com/recharts/recharts/issues"
+    "url": "https://github.com/jaquesgrobler/recharts/issues"
   },
-  "homepage": "https://github.com/recharts/recharts",
+  "homepage": "https://github.com/jaquesgrobler/recharts",
   "peerDependencies": {
     "react": "^0.14.0 || ^15.0.0",
     "react-addons-transition-group": "^0.14.0 || ^15.0.0",

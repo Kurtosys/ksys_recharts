@@ -34,7 +34,7 @@ const getCategoryAxisCoordinate = ({ axis, ticks, bandSize, entry, index }) => {
  */
 const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, dataKey, bandSize }) => {
   const { layout, dataStartIndex, dataEndIndex } = props;
-  const data = props.data.slice(dataStartIndex, dataEndIndex + 1);
+  const data = props.rebase(props.data.slice(dataStartIndex, dataEndIndex + 1));
 
   return data.map((entry, index) => {
     const value = entry[dataKey];
@@ -67,6 +67,7 @@ export class LineChart extends Component {
     layout: PropTypes.oneOf(['horizontal', 'vertical']),
     dataStartIndex: PropTypes.number,
     dataEndIndex: PropTypes.number,
+    rebase: PropTypes.func,
     data: PropTypes.array,
     isTooltipActive: PropTypes.bool,
     activeTooltipIndex: PropTypes.number,

@@ -37,6 +37,7 @@ class ComposedChart extends Component {
     activeTooltipIndex: PropTypes.number,
     xAxisMap: PropTypes.object,
     yAxisMap: PropTypes.object,
+    rebase: PropTypes.func,
     offset: PropTypes.object,
     graphicalItems: PropTypes.array,
     stackGroups: PropTypes.object,

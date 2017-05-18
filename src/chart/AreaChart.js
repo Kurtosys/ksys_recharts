@@ -52,7 +52,8 @@ const getBaseValue = (props, xAxis, yAxis) => {
 const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, bandSize, dataKey,
   stackedData }) => {
   const { layout, dataStartIndex, dataEndIndex } = props;
-  const data = props.data.slice(dataStartIndex, dataEndIndex + 1);
+  const data = props.rebase(props.data.slice(dataStartIndex, dataEndIndex + 1));
+
   const hasStack = stackedData && stackedData.length;
   const baseValue = getBaseValue(props, xAxis, yAxis);
 
@@ -104,6 +105,7 @@ export class AreaChart extends Component {
     layout: PropTypes.oneOf(['horizontal', 'vertical']),
     dataStartIndex: PropTypes.number,
     dataEndIndex: PropTypes.number,
+    rebase: PropTypes.func,
     data: PropTypes.array,
     isTooltipActive: PropTypes.bool,
     activeTooltipIndex: PropTypes.number,
@@ -123,6 +125,7 @@ export class AreaChart extends Component {
 
   renderCursor({ offset }) {
     const { children, isTooltipActive, layout, activeTooltipIndex, axisTicks } = this.props;
+
     const tooltipItem = findChildByType(children, Tooltip);
 
     if (!tooltipItem || !tooltipItem.props.cursor || !isTooltipActive ||

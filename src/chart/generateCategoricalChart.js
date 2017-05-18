@@ -158,10 +158,11 @@ const generateCategoricalChart = (ChartComponent, GraphicalChild) => {
      * @param {Number} dataEndIndex   The end index of the data series when a brush is applied
      * @return {Object}      Configuration
      */
+
     getAxisMapByAxes(props, { axes, graphicalItems, axisType, axisIdKey,
       stackGroups, dataStartIndex, dataEndIndex }) {
       const { layout, children, data } = props;
-      const displayedData = data.slice(dataStartIndex, dataEndIndex + 1);
+      const displayedData = this.props.rebase(data.slice(dataStartIndex, dataEndIndex + 1));
       const len = displayedData.length;
       const isCategorial = isCategorialAxis(layout, axisType);
 
@@ -404,9 +405,11 @@ const generateCategoricalChart = (ChartComponent, GraphicalChild) => {
      * @param  {Number} activeIndex    Active index of data
      * @return {Array}                 The content of tooltip
      */
+
     getTooltipContent(activeIndex) {
       const { dataStartIndex, dataEndIndex, graphicalItems } = this.state;
-      const data = this.props.data.slice(dataStartIndex, dataEndIndex + 1);
+
+      const data = this.props.rebase(this.props.data.slice(dataStartIndex, dataEndIndex + 1));
 
       if (activeIndex < 0 || !graphicalItems || !graphicalItems.length
         || activeIndex >= data.length) {
