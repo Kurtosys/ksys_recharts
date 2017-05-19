@@ -1,5 +1,5 @@
 {
-  "name": "ksys_recharts",
+  "name": "@kurtosys/ksys_recharts",
   "version": "0.23.0",
   "description": "React charts",
   "main": "lib/index",
