@@ -1,6 +1,6 @@
 {
-  "name": "recharts-patched",
-  "version": "0.18.1",
+  "name": "ksys_recharts",
+  "version": "0.23.0",
   "description": "React charts",
   "main": "lib/index",
   "jsnext:main": "es6/index",
@@ -35,13 +35,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jaquesgrobler/recharts.git"
+    "url": "https://github.com/Kurtosys/ksys_recharts.git"
   },
   "author": "recharts group",
   "bugs": {
-    "url": "https://github.com/jaquesgrobler/recharts/issues"
+    "url": "https://github.com/Kurtosys/ksys_recharts/issues"
   },
-  "homepage": "https://github.com/jaquesgrobler/recharts",
+  "homepage": "https://github.com/Kurtosys/ksys_recharts",
   "peerDependencies": {
     "react": "^0.14.0 || ^15.0.0",
     "react-addons-transition-group": "^0.14.0 || ^15.0.0",
