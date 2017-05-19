@@ -1,7 +1,8 @@
 /**
  * @fileOverview Polar Grid
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from '../util/PureRender';
 import { polarToCartesian } from '../util/PolarUtils';
 import { PRESENTATION_ATTRIBUTES, getPresentationAttributes } from '../util/ReactUtils';
@@ -30,14 +31,6 @@ class PolarGrid extends Component {
     outerRadius: 0,
     gridType: 'polygon',
   };
-
-  constructor(props) {
-    super(props);
-
-    if (!this.clipId) {
-      this.clipId = `rechartsPolarGridBgClip${Date.now()}`;
-    }
-  }
 
   getPolygonPath(radius) {
     const { cx, cy, polarAngles } = this.props;

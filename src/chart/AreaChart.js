@@ -1,7 +1,8 @@
 /**
  * @fileOverview Area Chart
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Smooth from 'react-smooth';
 import _ from 'lodash';
 import Layer from '../container/Layer';
@@ -10,6 +11,7 @@ import Dot from '../shape/Dot';
 import Curve from '../shape/Curve';
 import { getPresentationAttributes, findChildByType } from '../util/ReactUtils';
 import { getMainColorOfGraphicItem } from '../util/CartesianUtils';
+import { isNumber, getValueByDataKey } from '../util/DataUtils';
 import generateCategoricalChart from './generateCategoricalChart';
 import Area from '../cartesian/Area';
 import AnimationDecorator from '../util/AnimationDecorator';
@@ -21,20 +23,31 @@ const getCategoryAxisCoordinate = ({ axis, ticks, bandSize, entry, index }) => {
     return ticks[index] ? ticks[index].coordinate + bandSize / 2 : null;
   }
 
-  const dataKey = axis.dataKey;
+  const value = getValueByDataKey(entry, axis.dataKey);
 
-  return dataKey && !_.isNil(entry[dataKey]) ? axis.scale(entry[dataKey]) : null;
+  return !_.isNil(value) ? axis.scale(value) : null;
 };
 
 const getBaseValue = (props, xAxis, yAxis) => {
-  const { layout } = props;
+  const { layout, baseValue } = props;
+
+  if (isNumber(baseValue)) { return baseValue; }
+
   const numberAxis = layout === 'horizontal' ? yAxis : xAxis;
   const domain = numberAxis.scale.domain();
 
   if (numberAxis.type === 'number') {
     const max = Math.max(domain[0], domain[1]);
+    const min = Math.min(domain[0], domain[1]);
+
+    if (baseValue === 'dataMin') { return min; }
+    if (baseValue === 'dataMax') { return max; }
+
     return max < 0 ? max : Math.max(Math.min(domain[0], domain[1]), 0);
   }
+
+  if (baseValue === 'dataMin') { return domain[0]; }
+  if (baseValue === 'dataMax') { return domain[1]; }
 
   return domain[0];
 };
@@ -56,15 +69,29 @@ const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, bandSize, dataKe
 
   const hasStack = stackedData && stackedData.length;
   const baseValue = getBaseValue(props, xAxis, yAxis);
+  let isRange = false;
 
   const points = data.map((entry, index) => {
-    const value = hasStack ? stackedData[dataStartIndex + index] : [baseValue, entry[dataKey]];
+    let value;
+
+    if (hasStack) {
+      value = stackedData[dataStartIndex + index];
+    } else {
+      value = getValueByDataKey(entry, dataKey);
+
+      if (!_.isArray(value)) {
+        value = [baseValue, value];
+      } else {
+        isRange = true;
+      }
+    }
 
     if (layout === 'horizontal') {
       return {
         x: getCategoryAxisCoordinate({ axis: xAxis, ticks: xTicks, bandSize, entry, index }),
         y: _.isNil(value[1]) ? null : yAxis.scale(value[1]),
         value,
+        payload: entry,
       };
     }
 
@@ -72,18 +99,15 @@ const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, bandSize, dataKe
       x: _.isNil(value[1]) ? null : xAxis.scale(value[1]),
       y: getCategoryAxisCoordinate({ axis: yAxis, ticks: yTicks, bandSize, entry, index }),
       value,
+      payload: entry,
     };
   });
 
   let baseLine;
-  if (hasStack) {
-    baseLine = stackedData.slice(dataStartIndex, dataEndIndex + 1).map((entry, index) => ({
-      x: layout === 'horizontal' ?
-          getCategoryAxisCoordinate({ axis: xAxis, ticks: xTicks, bandSize, entry, index }) :
-          xAxis.scale(entry[0]),
-      y: layout === 'horizontal' ?
-         yAxis.scale(entry[0]) :
-         getCategoryAxisCoordinate({ axis: yAxis, ticks: yTicks, bandSize, entry, index }),
+  if (hasStack || isRange) {
+    baseLine = points.map(entry => ({
+      x: layout === 'horizontal' ? entry.x : xAxis.scale(entry && entry.value[0]),
+      y: layout === 'horizontal' ? yAxis.scale(entry && entry.value[0]) : entry.y,
     }));
   } else if (layout === 'horizontal') {
     baseLine = yAxis.scale(baseValue);
@@ -91,7 +115,7 @@ const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, bandSize, dataKe
     baseLine = xAxis.scale(baseValue);
   }
 
-  return { points, baseLine, layout };
+  return { points, baseLine, layout, isRange };
 };
 
 @AnimationDecorator
@@ -118,9 +142,17 @@ export class AreaChart extends Component {
       PropTypes.node,
     ]),
     stackGroups: PropTypes.object,
+    baseValue: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.oneOf(['dataMin', 'dataMax', 'auto']),
+    ]),
     // used internally
     isComposed: PropTypes.bool,
     animationId: PropTypes.number,
+  };
+
+  static defaultProps = {
+    baseValue: 'auto',
   };
 
   renderCursor({ offset }) {
@@ -151,7 +183,7 @@ export class AreaChart extends Component {
       <Curve {...cursorProps} type="linear" className="recharts-tooltip-cursor" />;
   }
 
-  renderActiveDot(option, props) {
+  renderActiveDot(option, props, childIndex) {
     let dot;
 
     if (React.isValidElement(option)) {
@@ -167,7 +199,7 @@ export class AreaChart extends Component {
         from="scale(0)"
         to="scale(1)"
         duration={400}
-        key={`dot-${props.dataKey}`}
+        key={`dot-${childIndex}-${props.pointType}`}
         attributeName="transform"
       >
         <Layer style={{ transformOrigin: 'center center' }}>
@@ -195,35 +227,48 @@ export class AreaChart extends Component {
     const { animationId } = this.props;
 
     const areaItems = items.reduce((result, child, i) => {
-
       const { dataKey, activeDot } = child.props;
       const currentComposedData = allComposedData[i];
+      const { isRange } = currentComposedData;
       const activePoint = currentComposedData.points &&
         currentComposedData.points[activeTooltipIndex];
+      const basePoint = isRange && currentComposedData.baseLine &&
+        currentComposedData.baseLine[activeTooltipIndex];
 
       if (hasDot && activeDot && activePoint) {
         const dotProps = {
-          index: i,
+          index: activeTooltipIndex,
           dataKey,
           animationId,
           cx: activePoint.x, cy: activePoint.y, r: 4,
           fill: getMainColorOfGraphicItem(child),
           strokeWidth: 2, stroke: '#fff',
+          payload: activePoint.payload,
+          value: activePoint.value,
+          pointType: 'activePoint',
           ...getPresentationAttributes(activeDot),
         };
-        dotItems.push((
-          <Layer key={`dot-${dataKey}`}>
-            {this.renderActiveDot(activeDot, dotProps)}
-          </Layer>
-        ));
+
+        dotItems.push(this.renderActiveDot(activeDot, dotProps, i));
+
+        if (basePoint) {
+          dotItems.push(this.renderActiveDot(activeDot, {
+            ...dotProps,
+            cx: basePoint.x,
+            cy: basePoint.y,
+            pointType: 'basePoint',
+          }, i));
+        }
       }
 
       const area = React.cloneElement(child, {
-        key: `area-${i}`,
-        ...offset,
+        key: child.key || `area-${i}`,
         ...currentComposedData,
+        ...offset,
         animationId,
         layout,
+        xAxis: xAxisMap[child.props.xAxisId],
+        yAxis: yAxisMap[child.props.yAxisId],
       });
 
       return [...result, area];

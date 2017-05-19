@@ -1,10 +1,12 @@
 /**
  * @fileOverview Brush
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component, Children } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { scalePoint } from 'd3-scale';
 import _ from 'lodash';
+import { getValueByDataKey } from '../util/DataUtils';
 import pureRender from '../util/PureRender';
 import Layer from '../container/Layer';
 import Text from '../component/Text';
@@ -24,15 +26,24 @@ class Brush extends Component {
     width: PropTypes.number.isRequired,
     height: PropTypes.number.isRequired,
     travellerWidth: PropTypes.number,
+    padding: PropTypes.shape({
+      top: PropTypes.number,
+      right: PropTypes.number,
+      bottom: PropTypes.number,
+      left: PropTypes.number,
+    }),
 
-    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]),
     data: PropTypes.array,
     startIndex: PropTypes.number,
     endIndex: PropTypes.number,
     tickFormatter: PropTypes.func,
 
+    children: PropTypes.node,
+
     onChange: PropTypes.func,
     onMove: PropTypes.func,
+    updateId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
   };
 
   static defaultProps = {
@@ -43,14 +54,15 @@ class Brush extends Component {
     travellerWidth: 5,
     fill: '#fff',
     stroke: '#666',
+    padding: { top: 1, right: 1, bottom: 1, left: 1 },
   };
 
   constructor(props) {
     super(props);
 
-    this.travellerDownHandlers = {
-      startX: this.handleTravellerDown.bind(this, 'startX'),
-      endX: this.handleTravellerDown.bind(this, 'endX'),
+    this.travellerDragStartHandlers = {
+      startX: this.handleTravellerDragStart.bind(this, 'startX'),
+      endX: this.handleTravellerDragStart.bind(this, 'endX'),
     };
 
     if (props.data && props.data.length) {
@@ -61,9 +73,9 @@ class Brush extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    const { data, width, x, travellerWidth } = this.props;
+    const { data, width, x, travellerWidth, updateId } = this.props;
 
-    if (nextProps.data !== data) {
+    if (nextProps.data !== data || nextProps.updateId !== updateId) {
       this.updateScale(nextProps);
     } else if (nextProps.width !== width || nextProps.x !== x ||
       nextProps.travellerWidth !== travellerWidth) {
@@ -119,12 +131,12 @@ class Brush extends Component {
 
   getTextOfTick(index) {
     const { data, tickFormatter, dataKey } = this.props;
-    const text = (data[index] && dataKey) ? data[index][dataKey] : index;
+    const text = getValueByDataKey(data[index], dataKey, index);
 
     return _.isFunction(tickFormatter) ? tickFormatter(text) : text;
   }
 
-  handleMove = (e) => {
+  handleDrag = (e) => {
     if (this.leaveTimer) {
       clearTimeout(this.leaveTimer);
       this.leaveTimer = null;
@@ -133,11 +145,17 @@ class Brush extends Component {
     if (this.state.isTravellerMoving) {
       this.handleTravellerMove(e);
     } else if (this.state.isSlideMoving) {
-      this.handleSlideMove(e);
+      this.handleSlideDrag(e);
     }
   };
 
-  handleUp = () => {
+  handleTouchMove = (e) => {
+    if (e.changedTouches != null && e.changedTouches.length > 0) {
+      this.handleDrag(e.changedTouches[0]);
+    }
+  };
+
+  handleDragEnd = () => {
     this.setState({
       isTravellerMoving: false,
       isSlideMoving: false,
@@ -146,7 +164,7 @@ class Brush extends Component {
 
   handleLeaveWrapper = () => {
     if (this.state.isTravellerMoving || this.state.isSlideMoving) {
-      this.leaveTimer = setTimeout(this.handleUp, 1000);
+      this.leaveTimer = setTimeout(this.handleDragEnd, 1000);
     }
   };
 
@@ -162,17 +180,19 @@ class Brush extends Component {
     });
   };
 
-  handleSlideDown = (e) => {
+  handleSlideDragStart = (e) => {
+    const event = e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : e;
+
     this.setState({
       isTravellerMoving: false,
       isSlideMoving: true,
-      slideMoveStartX: e.pageX,
+      slideMoveStartX: event.pageX,
     });
   };
 
-  handleSlideMove(e) {
+  handleSlideDrag(e) {
     const { slideMoveStartX, startX, endX } = this.state;
-    const { x, width, travellerWidth, onChange, onMove } = this.props;
+    const { x, width, travellerWidth, startIndex, endIndex, onChange, onMove } = this.props;
     let delta = e.pageX - slideMoveStartX;
 
     if (delta > 0) {
@@ -189,6 +209,10 @@ class Brush extends Component {
       endX: endX + delta,
     });
 
+    if ((newIndex.startIndex !== startIndex || newIndex.endIndex !== endIndex) && onChange) {
+      onChange(newIndex);
+    }
+
     this.setState({
       startX: startX + delta,
       endX: endX + delta,
@@ -196,17 +220,21 @@ class Brush extends Component {
     }, () => {
       if (onChange) {
         onChange(newIndex);
+      }
+      if (onMove) {
         onMove(newIndex);
       }
     });
   }
 
-  handleTravellerDown(id, e) {
+  handleTravellerDragStart(id, e) {
+    const event = e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : e;
+
     this.setState({
       isSlideMoving: false,
       isTravellerMoving: true,
       movingTravellerId: id,
-      brushMoveStartX: e.pageX,
+      brushMoveStartX: event.pageX,
     });
   }
 
@@ -233,6 +261,8 @@ class Brush extends Component {
     }, () => {
       if (onChange) {
         onChange(newIndex);
+      }
+      if (onMove) {
         onMove(newIndex);
       }
     });
@@ -271,6 +301,23 @@ class Brush extends Component {
     );
   }
 
+  renderPanorama() {
+    const { x, y, width, height, data, children, padding } = this.props;
+    const chartElement = Children.only(children);
+
+    if (!chartElement) { return null; }
+
+    return React.cloneElement(chartElement, {
+      x,
+      y,
+      width,
+      height,
+      margin: padding,
+      compact: true,
+      data,
+    });
+  }
+
   renderTraveller(startX, id) {
     const { y, travellerWidth, height, stroke } = this.props;
     const lineY = Math.floor(y + height / 2) - 1;
@@ -281,7 +328,8 @@ class Brush extends Component {
         className="recharts-brush-traveller"
         onMouseEnter={this.handleEnterSlideOrTraveller}
         onMouseLeave={this.handleLeaveSlideOrTraveller}
-        onMouseDown={this.travellerDownHandlers[id]}
+        onMouseDown={this.travellerDragStartHandlers[id]}
+        onTouchStart={this.travellerDragStartHandlers[id]}
         style={{ cursor: 'col-resize' }}
       >
         <rect
@@ -320,7 +368,8 @@ class Brush extends Component {
         className="recharts-brush-slide"
         onMouseEnter={this.handleEnterSlideOrTraveller}
         onMouseLeave={this.handleLeaveSlideOrTraveller}
-        onMouseDown={this.handleSlideDown}
+        onMouseDown={this.handleSlideDragStart}
+        onTouchStart={this.handleSlideDragStart}
         style={{ cursor: 'move' }}
         stroke="none"
         fill={stroke}
@@ -368,21 +417,25 @@ class Brush extends Component {
   }
 
   render() {
-    const { data, className } = this.props;
+    const { data, className, children } = this.props;
     const { startX, endX, isTextActive, isSlideMoving, isTravellerMoving } = this.state;
 
     if (!data || !data.length) { return null; }
 
     const layerClass = classNames('recharts-brush', className);
+    const isPanoramic = React.Children.count(children) === 1;
 
     return (
       <Layer
         className={layerClass}
-        onMouseUp={this.handleUp}
-        onMouseMove={this.handleMove}
+        onMouseMove={this.handleDrag}
         onMouseLeave={this.handleLeaveWrapper}
+        onMouseUp={this.handleDragEnd}
+        onTouchEnd={this.handleDragEnd}
+        onTouchMove={this.handleTouchMove}
       >
         {this.renderBackground()}
+        {isPanoramic && this.renderPanorama()}
         {this.renderSlide(startX, endX)}
         {this.renderTraveller(startX, 'startX')}
         {this.renderTraveller(endX, 'endX')}

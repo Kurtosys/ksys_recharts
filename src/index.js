@@ -1,4 +1,3 @@
-import 'core-js/es6/math';
 import './polyfill';
 
 export Surface from './container/Surface';
@@ -38,6 +37,7 @@ export Scatter from './cartesian/Scatter';
 export XAxis from './cartesian/XAxis';
 export YAxis from './cartesian/YAxis';
 export ZAxis from './cartesian/ZAxis';
+export ErrorBar from './cartesian/ErrorBar';
 
 export LineChart from './chart/LineChart';
 export BarChart from './chart/BarChart';

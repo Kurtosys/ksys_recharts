@@ -1,13 +1,15 @@
 /**
  * @fileOverview Radar Bar Chart
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { scaleBand } from 'd3-scale';
 import _ from 'lodash';
 import Surface from '../container/Surface';
 import RadialBar from '../polar/RadialBar';
-import { getPercentValue, combineEventHandlers } from '../util/DataUtils';
+import { getPercentValue, combineEventHandlers, getValueByDataKey,
+  findPositionOfBar } from '../util/DataUtils';
 import Cell from '../component/Cell';
 import Legend from '../component/Legend';
 import Tooltip from '../component/Tooltip';
@@ -83,11 +85,11 @@ class RadialBarChart extends Component {
    */
   getComposedData(item, barPosition, radiusScale, center, dataKey) {
     const { data } = this.props;
-    const pos = barPosition[dataKey];
+    const pos = findPositionOfBar(barPosition, item);
     const cells = findAllByType(item.props.children, Cell);
 
     return data.map((entry, index) => {
-      const value = entry[dataKey];
+      const value = getValueByDataKey(entry, dataKey);
       const radius = radiusScale(index);
 
       return {
@@ -96,6 +98,7 @@ class RadialBarChart extends Component {
         value,
         innerRadius: radius - pos.offset,
         outerRadius: radius - pos.offset + pos.radius,
+        payload: entry,
         ...(cells && cells[index] && cells[index].props),
       };
     });
@@ -110,6 +113,7 @@ class RadialBarChart extends Component {
 
     return items.map(child => ({
       ...child.props,
+      item: child,
       barSize: child.props.barSize || barSize,
     }));
   }
@@ -154,22 +158,23 @@ class RadialBarChart extends Component {
           radius: entry.barSize,
         };
 
-        return { ...res, [entry.dataKey]: prev };
-      }, {});
+        return [...res, { item: entry.item, position: prev }];
+      }, []);
     } else {
       let offset = getPercentValue(barCategoryGap, bandRadius);
       const radius = (bandRadius - 2 * offset - (len - 1) * barGap) / len >> 0;
       offset = -Math.max(((radius * len + (len - 1) * barGap) / 2) >> 0, 0);
 
-      result = radiusList.reduce((res, entry, i) => (
+      result = radiusList.reduce((res, entry, i) => ([
+        ...res,
         {
-          ...res,
-          [entry.dataKey]: {
+          item: entry.item,
+          position: {
             offset: offset + (radius + barGap) * i,
             radius,
           },
-        }
-      ), {});
+        },
+      ]), []);
     }
 
     return result;
@@ -226,7 +231,7 @@ class RadialBarChart extends Component {
 
     const legendData = (legendItem.props && legendItem.props.payload) ||
       data.map(entry => ({
-        type: 'square',
+        type: legendItem.props.iconType || 'square',
         color: entry.fill || '#000',
         value: entry.name,
         payload: entry,
@@ -282,7 +287,7 @@ class RadialBarChart extends Component {
 
       return React.cloneElement(child, {
         ...center,
-        key: `radial-bar-${i}`,
+        key: child.key || `radial-bar-${i}`,
         onMouseEnter: combineEventHandlers(this.handleMouseEnter, onMouseEnter, childOnMouseEnter),
         onMouseLeave: combineEventHandlers(this.handleMouseLeave, onMouseLeave, childOnMouseLeave),
         onClick: combineEventHandlers(null, onClick, childOnClick),

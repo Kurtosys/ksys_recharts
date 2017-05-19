@@ -1,7 +1,8 @@
 /**
  * @fileOverview Scatter Chart
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Surface from '../container/Surface';
 import Layer from '../container/Layer';
@@ -18,11 +19,12 @@ import ZAxis from '../cartesian/ZAxis';
 import ReferenceLine from '../cartesian/ReferenceLine';
 import ReferenceDot from '../cartesian/ReferenceDot';
 import ReferenceArea from '../cartesian/ReferenceArea';
-import { getPresentationAttributes, findChildByType, filterSvgElements,
+import { EVENT_ATTRIBUTES,
+  getPresentationAttributes, findChildByType, filterSvgElements,
   findAllByType, validateWidthHeight, getDisplayName, filterEventAttributes,
 } from '../util/ReactUtils';
 import pureRender from '../util/PureRender';
-import { parseSpecifiedDomain, isNumber, parseScale } from '../util/DataUtils';
+import { parseSpecifiedDomain, isNumber, parseScale, getValueByDataKey } from '../util/DataUtils';
 import { warn } from '../util/LogUtils';
 import { appendOffsetOfLegend, detectReferenceElementsDomain, getTicksOfAxis,
   getCoordinatesOfGrid, getLegendProps, getTicksOfScale } from '../util/CartesianUtils';
@@ -32,6 +34,7 @@ class ScatterChart extends Component {
   static displayName = 'ScatterChart';
 
   static propTypes = {
+    ...EVENT_ATTRIBUTES,
     width: PropTypes.number,
     height: PropTypes.number,
     margin: PropTypes.shape({
@@ -82,18 +85,19 @@ class ScatterChart extends Component {
       size: zAxisDataKey !== undefined && isNumber(entry[zAxisDataKey]) ?
         zAxis.scale(entry[zAxisDataKey]) :
         zAxis.range[0],
-      payload: {
+      node: {
         x: entry[xAxisDataKey],
         y: entry[yAxisDataKey],
         z: (zAxisDataKey !== undefined && entry[zAxisDataKey]) || '-',
       },
+      payload: entry,
       ...(cells && cells[index] && cells[index].props),
     }));
   }
 
   getDomain(items, dataKey, axisId, axisType) {
     let domain = items.reduce((result, item) => (
-      result.concat(item.props.data.map(entry => entry[dataKey]))
+      result.concat(item.props.data.map(entry => getValueByDataKey(entry, dataKey)))
     ), []);
 
     if (axisType === 'xAxis' || axisType === 'yAxis') {
@@ -158,16 +162,25 @@ class ScatterChart extends Component {
   }
 
   getOffset(items, xAxis, yAxis) {
-    const { width, height, margin } = this.props;
+    const { width, height, margin, children } = this.props;
+    const legendItem = findChildByType(children, Legend);
+
     let offset = {
       left: margin.left || 0, right: margin.right || 0,
       top: margin.top || 0, bottom: margin.bottom || 0,
     };
 
-    offset[xAxis.orientation] += xAxis.height;
-    offset[yAxis.orientation] += yAxis.width;
+    if (!xAxis.hide && !xAxis.mirror) {
+      offset[xAxis.orientation] += xAxis.height;
+    }
+    if (!yAxis.hide && !yAxis.mirror) {
+      offset[yAxis.orientation] += yAxis.width;
+    }
 
-    offset = appendOffsetOfLegend(offset, items, this.props);
+    if (legendItem && this.legendInstance) {
+      const legendBox = this.legendInstance.getBBox();
+      offset = appendOffsetOfLegend(offset, items, this.props, legendBox);
+    }
 
     return {
       ...offset,
@@ -183,7 +196,13 @@ class ScatterChart extends Component {
    * @return {Object} Configuration
    */
   getFormatAxis(axis, offset, axisType) {
-    const { orientation, domain, tickFormat, padding = {} } = axis;
+    const { orientation, domain, mirror, tickFormat, padding = {} } = axis;
+    const position = {
+      left: offset.left,
+      right: offset.left + offset.width,
+      top: offset.top,
+      bottom: offset.top + offset.height,
+    };
     const range = axisType === 'xAxis' ? [
       offset.left + (padding.left || 0),
       offset.left + offset.width - (padding.right || 0),
@@ -193,9 +212,7 @@ class ScatterChart extends Component {
     ];
 
     const scale = parseScale(axis).domain(domain).range(range);
-
     const ticks = getTicksOfScale(scale, axis);
-
     if (tickFormat) {
       scale.tickFormat(tickFormat);
     }
@@ -203,10 +220,12 @@ class ScatterChart extends Component {
     let x, y;
 
     if (axisType === 'xAxis') {
+      const needSpace = (orientation === 'top' && !mirror) || (orientation === 'bottom' && mirror);
       x = offset.left;
-      y = orientation === 'top' ? offset.top - axis.height : offset.top + offset.height;
+      y = position[orientation] - needSpace * axis.height;
     } else {
-      x = orientation === 'left' ? offset.left - axis.width : offset.right;
+      const needSpace = (orientation === 'left' && !mirror) || (orientation === 'right' && mirror);
+      x = position[orientation] - needSpace * axis.width;
       y = offset.top;
     }
 
@@ -231,26 +250,37 @@ class ScatterChart extends Component {
   getTooltipContent(data, xAxis, yAxis, zAxis) {
     if (!data) { return null; }
 
+    const { payload, node } = data;
+
     const content = [{
       name: xAxis.name || xAxis.dataKey,
       unit: xAxis.unit || '',
-      value: data.x,
+      value: node.x,
+      payload,
     }, {
       name: yAxis.name || yAxis.dataKey,
       unit: yAxis.unit || '',
-      value: data.y,
+      value: node.y,
+      payload,
     }];
 
-    if (data.z && data.z !== '-') {
+    if (node.z && node.z !== '-') {
       content.push({
         name: zAxis.name || zAxis.dataKey,
         unit: zAxis.unit || '',
-        value: data.z,
+        value: node.z,
+        payload,
       });
     }
 
     return content;
   }
+
+  handleLegendBBoxUpdate = (box) => {
+    if (box && this.legendInstance) {
+      this.forceUpdate();
+    }
+  };
   /**
    * The handler of mouse entering a scatter
    * @param {Object} el The active scatter
@@ -288,9 +318,7 @@ class ScatterChart extends Component {
     const { children } = this.props;
     const tooltipItem = findChildByType(children, Tooltip);
 
-    if (!tooltipItem || !tooltipItem.props.cursor || !this.state.isTooltipActive) {
-      return null;
-    }
+    if (!tooltipItem) { return null; }
 
     const { isTooltipActive, activeItem, activeTooltipCoord } = this.state;
     const viewBox = {
@@ -304,7 +332,7 @@ class ScatterChart extends Component {
       viewBox,
       active: isTooltipActive,
       label: '',
-      payload: this.getTooltipContent(activeItem && activeItem.payload, xAxis, yAxis, zAxis),
+      payload: this.getTooltipContent(activeItem, xAxis, yAxis, zAxis),
       coordinate: activeTooltipCoord,
     });
   }
@@ -362,6 +390,8 @@ class ScatterChart extends Component {
       chartWidth: width,
       chartHeight: height,
       margin,
+      ref: (legend) => { this.legendInstance = legend; },
+      onBBoxUpdate: this.handleLegendBBoxUpdate,
     });
   }
 
@@ -393,7 +423,7 @@ class ScatterChart extends Component {
     const { children } = this.props;
     const tooltipItem = findChildByType(children, Tooltip);
 
-    if (!tooltipItem || !this.state.isTooltipActive) { return null; }
+    if (!tooltipItem || !tooltipItem.props.cursor || !this.state.isTooltipActive) { return null; }
     const { activeItem } = this.state;
 
     const cursorProps = {
@@ -417,9 +447,10 @@ class ScatterChart extends Component {
    * @param  {Object} xAxis  The configuration of all x-axis
    * @param  {Object} yAxis  The configuration of all y-axis
    * @param  {Object} zAxis  The configuration of all z-axis
+   * @param  {Object} offset The offset of main part in the svg element
    * @return {ReactComponent}  All the instances of Scatter
    */
-  renderItems(items, xAxis, yAxis, zAxis) {
+  renderItems(items, xAxis, yAxis, zAxis, offset) {
     const { activeGroupId } = this.state;
     return items.map((child, i) => {
       const { strokeWidth, data } = child.props;
@@ -428,12 +459,15 @@ class ScatterChart extends Component {
       finalStrokeWidth = activeGroupId === `scatter-${i}` ? finalStrokeWidth + 2 : finalStrokeWidth;
 
       return React.cloneElement(child, {
-        key: `scatter-${i}`,
+        key: child.key || `scatter-${i}`,
         groupId: `scatter-${i}`,
         strokeWidth: finalStrokeWidth,
         onMouseLeave: this.handleScatterMouseLeave,
         onMouseEnter: this.handleScatterMouseEnter,
         points: this.getComposedData(child, data, xAxis, yAxis, zAxis),
+        ...offset,
+        xAxis,
+        yAxis,
       });
     }, this);
   }

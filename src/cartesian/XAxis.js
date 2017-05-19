@@ -1,7 +1,8 @@
 /**
  * @fileOverview X Axis
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from '../util/PureRender';
 
 @pureRender
@@ -24,11 +25,12 @@ class XAxis extends Component {
       PropTypes.oneOf(['auto', 'dataMin', 'dataMax']),
     ])),
     // The key of data displayed in the axis
-    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]),
     // The width of axis which is usually calculated internally
     width: PropTypes.number,
     // The height of axis, which need to be setted by user
     height: PropTypes.number,
+    mirror: PropTypes.bool,
     // The orientation of axis
     orientation: PropTypes.oneOf(['top', 'bottom']),
     type: PropTypes.oneOf(['number', 'category']),
@@ -50,6 +52,20 @@ class XAxis extends Component {
         'threshold']),
       PropTypes.func,
     ]),
+    label: PropTypes.oneOfType([
+      PropTypes.number, PropTypes.string, PropTypes.func, PropTypes.element,
+    ]),
+    tick: PropTypes.oneOfType([
+      PropTypes.bool, PropTypes.func, PropTypes.object, PropTypes.element,
+    ]),
+    axisLine: PropTypes.oneOfType([PropTypes.bool, PropTypes.object]),
+    tickLine: PropTypes.oneOfType([PropTypes.bool, PropTypes.object]),
+    minTickGap: PropTypes.number,
+    tickSize: PropTypes.number,
+    interval: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([
+      'preserveStart', 'preserveEnd', 'preserveStartEnd',
+    ])]),
+    reversed: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -58,6 +74,7 @@ class XAxis extends Component {
     orientation: 'bottom',
     width: 0,
     height: 30,
+    mirror: false,
     xAxisId: 0,
     tickCount: 5,
     type: 'category',
@@ -65,6 +82,7 @@ class XAxis extends Component {
     padding: { left: 0, right: 0 },
     allowDataOverflow: false,
     scale: 'auto',
+    reversed: false,
   };
 
   render() {

@@ -1,7 +1,8 @@
 /**
  * @fileOverview Pie Chart
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Surface from '../container/Surface';
 import Legend from '../component/Legend';
@@ -21,6 +22,7 @@ const getComposedData = ({ item }) => {
 
   if (data && data.length) {
     return data.map((entry, index) => ({
+      payload: entry,
       ...presentationProps,
       ...entry,
       ...(cells && cells[index] && cells[index].props),
@@ -115,7 +117,8 @@ export class PieChart extends Component {
 
         return result.concat(data.map(entry => (
           {
-            type: child.props.legendType, value: entry[nameKey],
+            type: legendItem.props.iconType || child.props.legendType,
+            value: entry[nameKey],
             color: entry.fill,
             payload: entry,
           }
@@ -168,7 +171,7 @@ export class PieChart extends Component {
       const maxRadius = getMaxRadius(width, height, margin);
 
       return React.cloneElement(child, {
-        key: `recharts-pie-${i}`,
+        key: child.key || `recharts-pie-${i}`,
         cx,
         cy,
         maxRadius: child.props.maxRadius || Math.sqrt(width * width + height * height) / 2,

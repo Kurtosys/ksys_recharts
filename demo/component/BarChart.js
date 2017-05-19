@@ -1,6 +1,6 @@
-import React, { PropTypes } from 'react';
+import React, { Component } from 'react';
 import { BarChart, Bar, Brush, Cell, CartesianGrid, ReferenceLine, ReferenceDot,
-  XAxis, YAxis, Tooltip, Legend } from 'recharts';
+  XAxis, YAxis, Tooltip, Legend, ErrorBar } from 'recharts';
 import { scaleOrdinal, schemeCategory10 } from 'd3-scale';
 import _ from 'lodash';
 import { changeNumberOfData } from './utils';
@@ -8,10 +8,10 @@ import { changeNumberOfData } from './utils';
 const colors = scaleOrdinal(schemeCategory10).range();
 
 const data = [
-  { name: 'food', uv: 2400, pv: 2013, amt: 4500, time: 1 },
-  { name: 'cosmetic', uv: 3300, pv: 2000, amt: 6500, time: 2 },
-  { name: 'storage', uv: 3200, pv: 1398, amt: 5000, time: 3 },
-  { name: 'digital', uv: 2800, pv: 2800, amt: 4000, time: 4 },
+  { name: 'food', uv: 2000, pv: 2013, amt: 4500, time: 1, uvError: [100, 50], pvError: [110, 20] },
+  { name: 'cosmetic', uv: 3300, pv: 2000, amt: 6500, time: 2, uvError: 120, pvError: 50 },
+  { name: 'storage', uv: 3200, pv: 1398, amt: 5000, time: 3, uvError: [120, 80], pvError: [200, 100] },
+  { name: 'digital', uv: 2800, pv: 2800, amt: 4000, time: 4, uvError: 100, pvError: 30 },
 ];
 
 const data01 = [
@@ -87,14 +87,30 @@ const data02 = [
   { name: '201511', uv: 3.27, pv: 6.74 },
 ];
 
+const rangeData = [
+  { day: '05-01', temperature: [-1, 10] },
+  { day: '05-02', temperature: [2, 15] },
+  { day: '05-03', temperature: [3, 12] },
+  { day: '05-04', temperature: [4, 12] },
+  { day: '05-05', temperature: [12, 16] },
+  { day: '05-06', temperature: [5, 16] },
+  { day: '05-07', temperature: [3, 12] },
+  { day: '05-08', temperature: [0, 8] },
+  { day: '05-09', temperature: [-3, 5] },
+];
+
 const RenderLabel = (props) => {
   const { x, y, textAnchor, key, value, index, ...others } = props;
 
-  return (
-    <text x={x} y={y} dy={-10} textAnchor={textAnchor} key={key}>
-      {_.isArray(value) ? value[1] : value}
-    </text>
-  );
+  if (x === +x && y === +y) {
+    return (
+      <text x={x} y={y} dy={-10} textAnchor={textAnchor} key={key}>
+        {_.isArray(value) ? value[1] : value}
+      </text>
+    );
+  }
+
+  return null;
 };
 
 const CustomTick = function() {
@@ -114,34 +130,44 @@ const CustomAxisTick = function() {
 };
 
 const CustomBar = (props) => {
-  const { x, y, width, height, fill } = props;
+const { x, y, width, height, fill } = props;
+
+if (x === +x && y === +y) {
   const path = `M${x},${y + height}
           C${x + width / 3},${y + height} ${x + width / 2},${y + height / 3} ${x + width / 2}, ${y}
           C${x + width / 2},${y + height / 3} ${x + 2 * width / 3},${y + height} ${x + width}, ${y + height}
           Z`;
 
   return <path d={path} stroke='none' fill={fill}/>;
+}
+
+return null;
 };
 
-const BarTwo = React.createClass({
+class BarTwo extends Component {
   getPath () {
     const { x, y, width, height } = this.props;
-    const extend = width * 0.2;
 
-    return `M${x - extend},${y + height}
-            C${x - extend + width / 3},${y + height} ${x + width / 6},${y} ${x + width / 2}, ${y}
-            C${x + 5 * width / 6},${y} ${x + extend + 2 * width / 3},${y + height} ${x + width + extend}, ${y + height}
-            Z`;
-  },
+    if (x === +x && y === +y) {
+      const extend = width * 0.2;
+
+      return `M${x - extend},${y + height}
+              C${x - extend + width / 3},${y + height} ${x + width / 6},${y} ${x + width / 2}, ${y}
+              C${x + 5 * width / 6},${y} ${x + extend + 2 * width / 3},${y + height} ${x + width + extend}, ${y + height}
+              Z`;
+    }
+
+    return null;
+  }
 
   render () {
     const {fill, fillOpacity} = this.props;
 
     return <path d={this.getPath()} stroke='none' fillOpacity={fillOpacity} fill={fill}/>;
   }
-});
+}
 
-const CustomAxis = React.createClass({
+class CustomAxis extends Component {
   getIcon () {
     const { x, y, payload } = this.props;
     let icon;
@@ -178,7 +204,7 @@ const CustomAxis = React.createClass({
     }
 
     return icon;
-  },
+  }
 
   render() {
     const { x, y, payload } = this.props;
@@ -190,7 +216,7 @@ const CustomAxis = React.createClass({
       </g>
     )
   }
-});
+}
 
 const initilaState = {
   data,
@@ -198,28 +224,29 @@ const initilaState = {
   data02,
 };
 
-export default React.createClass({
-  displayName: 'BarChartDemo',
+export default class Demo extends Component {
+
+  static displayName = 'BarChartDemo';
 
   getInitialState() {
     return initilaState;
-  },
+  }
 
   handleChangeData() {
     this.setState(() => _.mapValues(initilaState, changeNumberOfData));
-  },
+  }
 
   handlePvBarClick(data, index, e) {
     console.log(`Pv Bar (${index}) Click: `, data);
-  },
+  }
 
   handleBarAnimationStart() {
     console.log('Animation start');
-  },
+  }
 
   handleBarAnimationEnd() {
     console.log('Animation end');
-  },
+  }
 
   render() {
     const { data, data01, data02 } = this.state;
@@ -237,11 +264,11 @@ export default React.createClass({
 
         <p>BarChart of layout vertical</p>
         <div className="bar-chart-wrapper">
-          <BarChart width={400} height={400} data={data} layout="vertical" maxBarSize={10} >
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category"/>
+          <BarChart width={400} height={400} data={data.slice(0, 1)} maxBarSize={10} >
+            <XAxis padding={{ left: 20, right: 100 }} type="number" dataKey="time" />
+            <YAxis type="number"/>
             <CartesianGrid horizontal={false} />
-            <Bar dataKey="uv" fill="#ff7300" maxBarSize={15} />
+            <Bar dataKey="uv" fill="#ff7300" maxBarSize={15} isAnimationActive={false} />
             <Bar dataKey="pv" fill="#387908" />
             <Tooltip />
           </BarChart>
@@ -273,11 +300,40 @@ export default React.createClass({
           </BarChart>
         </div>
 
+        <p>BarChart with error bars</p>
+        <div className="bar-chart-wrapper" style={{textAlign: 'right'}}>
+          <BarChart width={400} height={400} data={data} onClick={this.handlePvBarClick}>
+            <XAxis dataKey="name" />
+            <YAxis yAxisId="a" />
+            <YAxis yAxisId="b" orientation="right" />
+            <Legend />
+            <Tooltip />
+            <CartesianGrid vertical={false}/>
+            <Bar yAxisId="a" dataKey="uv" onAnimationStart={this.handleBarAnimationStart} onAnimationEnd={this.handleBarAnimationEnd}>
+              {
+                data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % 20]}/>
+                ))
+              }
+              <ErrorBar dataKey="uvError" />
+            </Bar>
+            <Bar yAxisId="b" dataKey="pv" errorBar={{ errorKey: 'pvError', width: 10, strokeWidth: 1, fill: 'black' }}>
+              {
+                data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % 20]}/>
+                ))
+              }
+              <ErrorBar dataKey="pvError" />
+            </Bar>
+          </BarChart>
+        </div>
+
+
 
         <p>Tiny BarChart</p>
         <div className="bar-chart-wrapper">
           <BarChart width={150} height={40} data={data}>
-            <Bar dataKey="uv" fill="#ff7300" />
+            <Bar dataKey="uv" fill="#ff7300" onClick={this.handlePvBarClick} />
           </BarChart>
         </div>
 
@@ -324,7 +380,23 @@ export default React.createClass({
             <Legend layout="vertical" />
           </BarChart>
         </div>
+
+        <p>AreaChart of range values</p>
+        <div className="area-chart-wrapper">
+          <BarChart
+            width={400}
+            height={400}
+            data={rangeData}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
+            <XAxis dataKey="day" />
+            <YAxis />
+            <Bar dataKey="temperature" fill="#ff7300" />
+            <Tooltip />
+          </BarChart>
+        </div>
+
       </div>
     );
   }
-});
+}

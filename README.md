@@ -7,7 +7,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/recharts.svg?style=flat-square)](https://www.npmjs.com/package/recharts)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/recharts/recharts/raw/master/LICENSE)
 
-## Intro
+## Introduction
 
 This is a temporary patched version of an older version of Recharts,
 All credit goes to the recharts team - 
@@ -43,6 +43,50 @@ The main purpose of this library is to help you to write charts in React applica
 
 All the components of Recharts are clearly separated. The lineChart is composed of x axis, tooltip, grid, and line items, and each of them is an independent React Component. The clear separation and composition of components is one of the principle Recharts follows.
 
+## Installation
+
+### npm
+
+NPM is the easiest and fastest way to get started using Recharts. It is also the recommended installation method when building single-page applications (SPAs). It pairs nicely with a CommonJS module bundler such as Webpack.
+
+
+```sh
+# latest stable
+$ npm install recharts
+```
+
+
+### umd
+
+The UMD build is also available on unpkg.com:
+
+
+```html
+ <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+```
+
+Then you can find the library on `window.Recharts`.
+
+### dev build
+
+```sh
+$ git clone https://github.com/recharts/recharts.git
+$ cd recharts
+$ npm install
+$ npm run build
+```
+
+## Demo
+
+To examine the demos in your local build, execute
+
+
+```sh
+$ npm run[-script] demo
+```
+
+and then browse to http://localhost:3000
+
 ## Module Formats
 
 - [babel-plugin-recharts](https://github.com/recharts/babel-plugin-recharts) A simple transform to cherry-pick Recharts modules so you don’t have to.
@@ -57,4 +101,4 @@ We are looking for like-minded people who share the same idea about Recharts. Th
 
 [MIT](http://opensource.org/licenses/MIT)
 
-Copyright (c) 2015-2016 Recharts Group
+Copyright (c) 2015-2017 Recharts Group

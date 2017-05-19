@@ -1,6 +1,8 @@
-import React, { PropTypes } from 'react';
+import React, { Children } from 'react';
+import PropTypes from 'prop-types';
 import _ from 'lodash';
 import { isNumber } from './DataUtils';
+import { shallowEqual } from './PureRender';
 
 export const PRESENTATION_ATTRIBUTES = {
   alignmentBaseline: PropTypes.string,
@@ -27,7 +29,7 @@ export const PRESENTATION_ATTRIBUTES = {
   floodOpacity: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   font: PropTypes.string,
   fontFamily: PropTypes.string,
-  fontSize: PropTypes.number,
+  fontSize: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   fontSizeAdjust: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   fontStretch: PropTypes.oneOf([
     'normal', 'wider', 'narrower', 'ultra-condensed', 'extra-condensed',
@@ -97,7 +99,7 @@ export const PRESENTATION_ATTRIBUTES = {
   r: PropTypes.number,
 };
 
-const EVENT_ATTRIBUTES = {
+export const EVENT_ATTRIBUTES = {
   onClick: PropTypes.func,
   onMouseDown: PropTypes.func,
   onMouseUp: PropTypes.func,
@@ -107,6 +109,12 @@ const EVENT_ATTRIBUTES = {
   onMouseEnter: PropTypes.func,
   onMouseLeave: PropTypes.func,
 };
+
+export const LEGEND_TYPES = [
+  'line', 'square', 'rect', 'circle', 'cross', 'diamond',
+  'star', 'triangle', 'wye', 'none',
+];
+
 /**
  * Get the display name of a component
  * @param  {Object} Comp Specified Component
@@ -262,7 +270,10 @@ export const validateWidthHeight = (el) => {
   return true;
 };
 
-export const isSsr = () => (typeof document === 'undefined');
+export const isSsr = () => (
+  !(typeof window !== 'undefined' && window.document && window.document.createElement &&
+    window.setTimeout)
+);
 
 const SVG_TAGS = ['a', 'altGlyph', 'altGlyphDef', 'altGlyphItem', 'animate',
   'animateColor', 'animateMotion', 'animateTransform', 'circle', 'clipPath',
@@ -293,4 +304,41 @@ export const filterSvgElements = (children) => {
   });
 
   return svgElements;
+};
+
+export const isSingleChildEqual = (nextChild, prevChild) => {
+  if (_.isNil(nextChild) && _.isNil(prevChild)) {
+    return true;
+  } else if (!_.isNil(nextChild) && !_.isNil(prevChild)) {
+    return shallowEqual(nextChild.props, prevChild.props);
+  }
+
+  return false;
+};
+/**
+ * Wether props of children changed
+ * @param  {Object} nextChildren The latest children
+ * @param  {Object} prevChildren The prev children
+ * @return {Boolean}             equal or not
+ */
+export const isChildrenEqual = (nextChildren, prevChildren) => {
+  if (nextChildren === prevChildren) { return true; }
+
+  if (Children.count(nextChildren) !== Children.count(prevChildren)) { return false; }
+
+  const count = Children.count(nextChildren);
+
+  if (count === 0) { return true; }
+  if (count === 1) { return isSingleChildEqual(nextChildren, prevChildren); }
+
+  for (let i = 0; i < count; i++) {
+    const nextChild = nextChildren[i];
+    const prevChild = prevChildren[i];
+
+    if (!isSingleChildEqual(nextChild, prevChild)) {
+      return false;
+    }
+  }
+
+  return true;
 };

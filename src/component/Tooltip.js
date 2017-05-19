@@ -1,14 +1,16 @@
 /**
  * @fileOverview Tooltip
  */
-import React, { Component, PropTypes } from 'react';
-import ReactDOMServer from 'react-dom/server';
-import Animate from 'react-smooth';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
+import { translateStyle } from 'react-smooth';
 import _ from 'lodash';
 import DefaultTooltipContent from './DefaultTooltipContent';
-import { getStyleString } from '../util/DOMUtils';
 import { isSsr } from '../util/ReactUtils';
-import { isNumOrStr, isNumber } from '../util/DataUtils';
+import { isNumber } from '../util/DataUtils';
+import pureRender from '../util/PureRender';
+
+const EPS = 1;
 
 const propTypes = {
   content: PropTypes.oneOfType([PropTypes.element, PropTypes.func]),
@@ -41,7 +43,7 @@ const propTypes = {
   label: PropTypes.any,
   payload: PropTypes.arrayOf(PropTypes.shape({
     name: PropTypes.any,
-    value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    value: PropTypes.oneOfType([PropTypes.number, PropTypes.string, PropTypes.array]),
     unit: PropTypes.any,
   })),
 
@@ -74,33 +76,6 @@ const defaultProps = {
   itemSorter: () => -1,
 };
 
-const getTooltipBBox = (wrapperStyle, contentItem) => {
-  if (!isSsr()) {
-    const contentHtml = ReactDOMServer.renderToStaticMarkup(contentItem);
-    const style = {
-      // solve the problem temporarily that the width and height will be affect by the global css
-      fontSize: 12,
-      ...wrapperStyle,
-      top: -20000,
-      left: 0,
-      display: 'block',
-    };
-
-    const wrapper = document.createElement('div');
-
-    wrapper.setAttribute('style', getStyleString(style));
-    wrapper.innerHTML = contentHtml;
-    document.body.appendChild(wrapper);
-    const box = wrapper.getBoundingClientRect();
-
-    document.body.removeChild(wrapper);
-
-    return box;
-  }
-
-  return null;
-};
-
 const renderContent = (content, props) => {
   if (React.isValidElement(content)) {
     return React.cloneElement(content, props);
@@ -111,63 +86,104 @@ const renderContent = (content, props) => {
   return React.createElement(DefaultTooltipContent, props);
 };
 
+@pureRender
 class Tooltip extends Component {
   static displayName = 'Tooltip';
   static propTypes = propTypes;
   static defaultProps = defaultProps;
 
+  state = {
+    boxWidth: -1,
+    boxHeight: -1,
+  };
+
+  componentDidMount() {
+    this.updateBBox();
+  }
+
+  componentDidUpdate() {
+    this.updateBBox();
+  }
+
+  updateBBox() {
+    const { boxWidth, boxHeight } = this.state;
+
+    if (this.wrapperNode && this.wrapperNode.getBoundingClientRect) {
+      const box = this.wrapperNode.getBoundingClientRect();
+
+      if (Math.abs(box.width - boxWidth) > EPS || Math.abs(box.height - boxHeight) > EPS) {
+        this.setState({
+          boxWidth: box.width,
+          boxHeight: box.height,
+        });
+      }
+    } else if (boxWidth !== -1 || boxHeight !== -1) {
+      this.setState({
+        boxWidth: -1,
+        boxHeight: -1,
+      });
+    }
+  }
+
   render() {
     const { payload, isAnimationActive, animationDuration, animationEasing } = this.props;
-
-    if (!payload || !payload.length ||
-      !payload.filter(entry => isNumOrStr(entry.value)).length
-    ) { return null; }
-
+    const hasPayload = payload && payload.length &&
+      payload.filter(entry => !_.isNil(entry.value)).length;
     const { content, viewBox, coordinate, position, active, offset, wrapperStyle } = this.props;
-    const outerStyle = {
+    let outerStyle = {
       pointerEvents: 'none',
-      display: active ? 'block' : 'none',
+      visibility: active && hasPayload ? 'visible' : 'hidden',
       position: 'absolute',
       top: 0,
       ...wrapperStyle,
     };
-    const contentItem = renderContent(content, this.props);
     let translateX, translateY;
 
     if (position && isNumber(position.x) && isNumber(position.y)) {
       translateX = position.x;
       translateY = position.y;
     } else {
-      const box = getTooltipBBox(outerStyle, contentItem);
+      const { boxWidth, boxHeight } = this.state;
 
-      if (!box) { return null; }
-      translateX = position && isNumber(position.x) ? position.x : Math.max(
-        coordinate.x + box.width + offset > (viewBox.x + viewBox.width) ?
-        coordinate.x - box.width - offset :
-        coordinate.x + offset, viewBox.x);
+      if (boxWidth > 0 && boxHeight > 0 && coordinate) {
+        translateX = position && isNumber(position.x) ? position.x : Math.max(
+          coordinate.x + boxWidth + offset > (viewBox.x + viewBox.width) ?
+          coordinate.x - boxWidth - offset :
+          coordinate.x + offset, viewBox.x);
 
-      translateY = position && isNumber(position.y) ? position.y : Math.max(
-        coordinate.y + box.height + offset > (viewBox.y + viewBox.height) ?
-        coordinate.y - box.height - offset :
-        coordinate.y + offset, viewBox.y);
+        translateY = position && isNumber(position.y) ? position.y : Math.max(
+          coordinate.y + boxHeight + offset > (viewBox.y + viewBox.height) ?
+          coordinate.y - boxHeight - offset :
+          coordinate.y + offset, viewBox.y);
+      } else {
+        outerStyle.visibility = 'hidden';
+      }
+    }
+
+    outerStyle = {
+      ...outerStyle,
+      ...translateStyle({
+        transform: `translate(${translateX}px, ${translateY}px)`,
+      }),
+    };
+
+    if (isAnimationActive && active) {
+      outerStyle = {
+        ...outerStyle,
+        ...translateStyle({
+          transition: `transform ${animationDuration}ms ${animationEasing}`,
+        }),
+      };
     }
 
     return (
-      <Animate
-        from={`translate(${translateX}px, ${translateY}px)`}
-        to={`translate(${translateX}px, ${translateY}px)`}
-        duration={animationDuration}
-        isActive={isAnimationActive}
-        easing={animationEasing}
-        attributeName="transform"
+      <div
+        className="recharts-tooltip-wrapper"
+        style={outerStyle}
+        ref={(node) => { this.wrapperNode = node; }}
       >
-        <div
-          className="recharts-tooltip-wrapper"
-          style={outerStyle}
-        >
-          {contentItem}
-        </div>
-      </Animate>
+        {renderContent(content, this.props)}
+      </div>
     );
   }
 }

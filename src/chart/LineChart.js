@@ -1,9 +1,11 @@
 /**
  * @fileOverview Line Chart
  */
-import React, { PropTypes, Component } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Smooth from 'react-smooth';
 import _ from 'lodash';
+import classNames from 'classnames';
 import Layer from '../container/Layer';
 import Tooltip from '../component/Tooltip';
 import Curve from '../shape/Curve';
@@ -13,16 +15,16 @@ import Line from '../cartesian/Line';
 import { getPresentationAttributes, findChildByType } from '../util/ReactUtils';
 import AnimationDecorator from '../util/AnimationDecorator';
 import composedDataDecorator from '../util/ComposedDataDecorator';
-
+import { getValueByDataKey } from '../util/DataUtils';
 
 const getCategoryAxisCoordinate = ({ axis, ticks, bandSize, entry, index }) => {
   if (axis.type === 'category') {
     return ticks[index] ? ticks[index].coordinate + bandSize / 2 : null;
   }
 
-  const dataKey = axis.dataKey;
+  const value = getValueByDataKey(entry, axis.dataKey);
 
-  return dataKey && !_.isNil(entry[dataKey]) ? axis.scale(entry[dataKey]) : null;
+  return !_.isNil(value) ? axis.scale(value) : null;
 };
 /**
  * Compose the data of each group
@@ -37,13 +39,14 @@ const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, dataKey, bandSiz
   const data = props.rebase(props.data.slice(dataStartIndex, dataEndIndex + 1));
 
   return data.map((entry, index) => {
-    const value = entry[dataKey];
+    const value = getValueByDataKey(entry, dataKey);
 
     if (layout === 'horizontal') {
       return {
         x: getCategoryAxisCoordinate({ axis: xAxis, ticks: xTicks, bandSize, entry, index }),
         y: _.isNil(value) ? null : yAxis.scale(value),
         value,
+        payload: entry,
       };
     }
 
@@ -51,6 +54,7 @@ const getComposedData = ({ props, xAxis, yAxis, xTicks, yTicks, dataKey, bandSiz
       x: _.isNil(value) ? null : xAxis.scale(value),
       y: getCategoryAxisCoordinate({ axis: yAxis, ticks: yTicks, bandSize, entry, index }),
       value,
+      payload: entry,
     };
   });
 };
@@ -111,7 +115,7 @@ export class LineChart extends Component {
       <Curve {...cursorProps} type="linear" className="recharts-tooltip-cursor" />;
   }
 
-  renderActiveDot(option, props) {
+  renderActiveDot(option, props, childIndex) {
     let dot;
 
     if (React.isValidElement(option)) {
@@ -119,7 +123,8 @@ export class LineChart extends Component {
     } else if (_.isFunction(option)) {
       dot = option(props);
     } else {
-      dot = <Dot {...props} className="recharts-line-active-dot" />;
+      const className = classNames('recharts-line-active-dot', option.className);
+      dot = <Dot {...props} className={className} />;
     }
 
     return (
@@ -127,7 +132,7 @@ export class LineChart extends Component {
         from="scale(0)"
         to="scale(1)"
         duration={400}
-        key={`dot-${props.dataKey}`}
+        key={`dot-${childIndex}`}
         attributeName="transform"
       >
         <Layer style={{ transformOrigin: 'center center' }}>{dot}</Layer>
@@ -156,29 +161,33 @@ export class LineChart extends Component {
 
       if (hasDot && activeDot && activePoint) {
         const dotProps = {
-          index: i,
+          index: activeTooltipIndex,
           dataKey,
           cx: activePoint.x, cy: activePoint.y, r: 4,
           fill: stroke, strokeWidth: 2, stroke: '#fff',
+          payload: activePoint.payload,
+          value: activePoint.value,
           ...getPresentationAttributes(activeDot),
         };
         dotItems.push(this.renderActiveDot(activeDot, dotProps, i));
       }
 
       return React.cloneElement(child, {
-        key: `line-${i}`,
+        key: child.key || `line-${i}`,
         ...offset,
         layout,
         points,
         animationId,
+        xAxis: xAxisMap[child.props.xAxisId],
+        yAxis: yAxisMap[child.props.yAxisId],
       });
     }, this);
 
     return (
-      <g key="recharts-line-wrapper">
-        <g key="recharts-line">{lineItems}</g>
-        <g key="recharts-line-dot">{dotItems}</g>
-      </g>
+      <Layer className="recharts-line-chart-wrapper">
+        <Layer className="recharts-line-chart">{lineItems}</Layer>
+        <Layer className="recharts-line-chart-dot">{dotItems}</Layer>
+      </Layer>
     );
   }
 

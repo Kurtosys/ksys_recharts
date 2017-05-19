@@ -1,12 +1,14 @@
 /**
  * @fileOverview Bar Chart
  */
-import React, { PropTypes, Component } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import _ from 'lodash';
 import Layer from '../container/Layer';
 import Tooltip from '../component/Tooltip';
 import Rectangle from '../shape/Rectangle';
-import { getBandSizeOfAxis, getAnyElementOfObject } from '../util/DataUtils';
+import { getBandSizeOfAxis, getAnyElementOfObject, getValueByDataKey,
+  findPositionOfBar, truncateByDomain, mathSign } from '../util/DataUtils';
 import { getPresentationAttributes, findChildByType, findAllByType } from '../util/ReactUtils';
 import generateCategoricalChart from './generateCategoricalChart';
 import Cell from '../component/Cell';
@@ -19,11 +21,9 @@ const getCategoryAxisCoordinate = ({ axis, ticks, offset, bandSize, entry, index
     return ticks[index] ? ticks[index].coordinate + offset : null;
   }
 
-  const dataKey = axis.dataKey;
+  const value = getValueByDataKey(entry, axis.dataKey);
 
-  return dataKey && !_.isNil(entry[dataKey]) ?
-    axis.scale(entry[dataKey]) - bandSize / 2 + offset :
-    null;
+  return !_.isNil(value) ? axis.scale(value) - bandSize / 2 + offset : null;
 };
 
 const getBaseValue = ({ props, xAxis, yAxis }) => {
@@ -32,7 +32,13 @@ const getBaseValue = ({ props, xAxis, yAxis }) => {
   const domain = numberAxis.scale.domain();
 
   if (numberAxis.type === 'number') {
-    return Math.max(Math.min(domain[0], domain[1]), 0);
+    const min = Math.min(domain[0], domain[1]);
+    const max = Math.max(domain[0], domain[1]);
+
+    if (min <= 0 && max >= 0) { return 0; }
+    if (max < 0) { return max; }
+
+    return min;
   }
 
   return domain[0];
@@ -50,17 +56,30 @@ const getBaseValue = ({ props, xAxis, yAxis }) => {
  */
 const getComposedData = ({ props, item, barPosition, bandSize, xAxis, yAxis,
   xTicks, yTicks, stackedData }) => {
-
   const { layout, dataStartIndex, dataEndIndex } = props;
   const { dataKey, children, minPointSize } = item.props;
-  const pos = barPosition[dataKey];
+  const pos = findPositionOfBar(barPosition, item);
+  const stackedDomain = stackedData && layout === 'horizontal' ?
+    yAxis.scale.domain() : xAxis.scale.domain();
+
+  if (!pos) { return []; }
+
   const data = props.data.slice(dataStartIndex, dataEndIndex + 1);
   const baseValue = getBaseValue({ props, xAxis, yAxis });
   const cells = findAllByType(children, Cell);
 
   return data.map((entry, index) => {
-    const value = stackedData ? stackedData[dataStartIndex + index] : [baseValue, entry[dataKey]];
-    let x, y, width, height;
+    let value, x, y, width, height;
+
+    if (stackedData) {
+      value = truncateByDomain(stackedData[dataStartIndex + index], stackedDomain);
+    } else {
+      value = getValueByDataKey(entry, dataKey);
+
+      if (!_.isArray(value)) {
+        value = [baseValue, value];
+      }
+    }
 
     if (layout === 'horizontal') {
       x = getCategoryAxisCoordinate({
@@ -71,20 +90,19 @@ const getComposedData = ({ props, item, barPosition, bandSize, xAxis, yAxis,
         entry,
         index,
       });
-      y = yAxis.scale(xAxis.orientation === 'top' ? value[0] : value[1]);
+      y = yAxis.scale(value[1]);
       width = pos.size;
-      height = xAxis.orientation === 'top' ?
-              yAxis.scale(value[1]) - yAxis.scale(value[0]) :
-              yAxis.scale(value[0]) - yAxis.scale(value[1]);
+      height = yAxis.scale(value[0]) - yAxis.scale(value[1]);
+
       if (Math.abs(minPointSize) > 0 && Math.abs(height) < Math.abs(minPointSize)) {
-        const delta = Math.sign(height || minPointSize) *
+        const delta = mathSign(height || minPointSize) *
           (Math.abs(minPointSize) - Math.abs(height));
 
         y -= delta;
         height += delta;
       }
     } else {
-      x = xAxis.scale(yAxis.orientation === 'left' ? value[0] : value[1]);
+      x = xAxis.scale(value[0]);
       y = getCategoryAxisCoordinate({
         axis: yAxis,
         ticks: yTicks,
@@ -93,13 +111,11 @@ const getComposedData = ({ props, item, barPosition, bandSize, xAxis, yAxis,
         entry,
         index,
       });
-      width = yAxis.orientation === 'left' ?
-              xAxis.scale(value[1]) - xAxis.scale(value[0]) :
-              xAxis.scale(value[0]) - xAxis.scale(value[1]);
+      width = xAxis.scale(value[1]) - xAxis.scale(value[0]);
       height = pos.size;
 
       if (Math.abs(minPointSize) > 0 && Math.abs(width) < Math.abs(minPointSize)) {
-        const delta = Math.sign(width || minPointSize) *
+        const delta = mathSign(width || minPointSize) *
           (Math.abs(minPointSize) - Math.abs(width));
         width += delta;
       }
@@ -108,6 +124,7 @@ const getComposedData = ({ props, item, barPosition, bandSize, xAxis, yAxis,
     return {
       ...entry,
       x, y, width, height, value: stackedData ? value : value[1],
+      payload: entry,
       ...(cells && cells[index] && cells[index].props),
     };
   });
@@ -138,8 +155,9 @@ class BarChart extends Component {
     ]),
     stackGroups: PropTypes.object,
     barCategoryGap: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    barGap: PropTypes.number,
+    barGap: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     barSize: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    maxBarSize: PropTypes.number,
     // used internally
     isComposed: PropTypes.bool,
     animationId: PropTypes.number,
@@ -181,21 +199,25 @@ class BarChart extends Component {
   /**
    * Draw the main part of bar chart
    * @param  {Array} items     All the instance of Bar
+   * @param  {Object} offset   The offset of main part in the svg element
    * @return {ReactComponent}  All the instances of Bar
    */
-  renderItems(items) {
+  renderItems(items, offset) {
     if (!items || !items.length) { return null; }
 
-    const { layout } = this.props;
+    const { layout, xAxisMap, yAxisMap } = this.props;
 
     const { animationId, allComposedData } = this.props;
 
     return items.map((child, i) =>
       React.cloneElement(child, {
-        key: `bar-${i}`,
+        key: child.key || `bar-${i}`,
         layout,
         animationId,
+        ...offset,
         data: allComposedData[i],
+        xAxis: xAxisMap[child.props.xAxisId],
+        yAxis: yAxisMap[child.props.yAxisId],
       })
     , this);
   }
@@ -206,7 +228,7 @@ class BarChart extends Component {
     return (
       <Layer className="recharts-bar-graphical">
         {!isComposed && this.renderCursor({ xAxisMap, yAxisMap, offset })}
-        {this.renderItems(graphicalItems)}
+        {this.renderItems(graphicalItems, offset)}
       </Layer>
     );
   }

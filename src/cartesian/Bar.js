@@ -1,16 +1,19 @@
 /**
  * @fileOverview Render a group of bar
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Animate, { translateStyle } from 'react-smooth';
 import _ from 'lodash';
 import Rectangle from '../shape/Rectangle';
 import Layer from '../container/Layer';
 import Text from '../component/Text';
+import ErrorBar from './ErrorBar';
 import pureRender from '../util/PureRender';
-import { PRESENTATION_ATTRIBUTES, getPresentationAttributes,
-  filterEventsOfChild, isSsr } from '../util/ReactUtils';
+import { getValueByDataKey, uniqueId } from '../util/DataUtils';
+import { PRESENTATION_ATTRIBUTES, EVENT_ATTRIBUTES, LEGEND_TYPES,
+  getPresentationAttributes, filterEventsOfChild, isSsr, findChildByType } from '../util/ReactUtils';
 
 @pureRender
 class Bar extends Component {
@@ -19,19 +22,19 @@ class Bar extends Component {
 
   static propTypes = {
     ...PRESENTATION_ATTRIBUTES,
+    ...EVENT_ATTRIBUTES,
     className: PropTypes.string,
     layout: PropTypes.oneOf(['vertical', 'horizontal']),
     xAxisId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     yAxisId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    yAxis: PropTypes.object,
+    xAxis: PropTypes.object,
     stackId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     barSize: PropTypes.number,
     unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     name: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    legendType: PropTypes.oneOf([
-      'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square', 'star',
-      'triangle', 'wye',
-    ]),
+    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]).isRequired,
+    legendType: PropTypes.oneOf(LEGEND_TYPES),
     minPointSize: PropTypes.number,
     maxBarSize: PropTypes.number,
 
@@ -47,9 +50,6 @@ class Bar extends Component {
       radius: PropTypes.oneOfType([PropTypes.number, PropTypes.array]),
       value: PropTypes.oneOfType([PropTypes.number, PropTypes.array]),
     })),
-    onMouseEnter: PropTypes.func,
-    onMouseLeave: PropTypes.func,
-    onClick: PropTypes.func,
     onAnimationStart: PropTypes.func,
     onAnimationEnd: PropTypes.func,
 
@@ -77,9 +77,8 @@ class Bar extends Component {
     onAnimationEnd: () => {},
   };
 
-  state = {
-    isAnimationFinished: false,
-  };
+  state = { isAnimationFinished: false };
+  id = uniqueId('recharts-bar-');
 
   handleAnimationEnd = () => {
     this.setState({ isAnimationFinished: true });
@@ -99,7 +98,7 @@ class Bar extends Component {
     } else if (_.isFunction(option)) {
       rectangle = option(props);
     } else {
-      rectangle = <Rectangle {...props} className="recharts-bar-rectangle" />;
+      rectangle = <Rectangle {...props} />;
     }
 
     return rectangle;
@@ -115,9 +114,20 @@ class Bar extends Component {
 
     return data.map((entry, index) => {
       const { x, y, width, height } = entry;
-      const props = {
-        ...baseProps, ...entry, index, ...filterEventsOfChild(this.props, entry, index),
-      };
+      const props = { ...baseProps, ...entry, index };
+
+      if (_.isNil(entry.value) || !isAnimationActive) {
+        return (
+          <Layer
+            className="recharts-bar-rectangle"
+            {...filterEventsOfChild(this.props, entry, index)}
+            key={`rectangle-${index}`}
+          >
+            {this.renderRectangle(shape, props)}
+          </Layer>
+        );
+      }
+
       let transformOrigin = '';
 
       if (layout === 'vertical') {
@@ -138,16 +148,21 @@ class Bar extends Component {
           onAnimationEnd={this.handleAnimationEnd}
           onAnimationStart={this.handleAnimationStart}
         >
-          <g style={translateStyle({ transformOrigin })}>
+          <Layer
+            className="recharts-bar-rectangle"
+            style={translateStyle({ transformOrigin })}
+            {...filterEventsOfChild(this.props, entry, index)}
+            key={`rectangle-${index}`}
+          >
             {this.renderRectangle(shape, props)}
-          </g>
+          </Layer>
         </Animate>
       );
     });
   }
 
   renderLabelItem(option, props, value) {
-    let labelItem;
+    let labelItem = null;
 
     if (React.isValidElement(option)) {
       labelItem = React.cloneElement(option, props);
@@ -176,20 +191,25 @@ class Bar extends Component {
     const { data, label, layout } = this.props;
     const barProps = getPresentationAttributes(this.props);
     const customLabelProps = getPresentationAttributes(label);
-    const textAnchor = layout === 'vertical' ? 'start' : 'middle';
+
     const labels = data.map((entry, i) => {
+      let textAnchor = 'middle';
+      let dominantBaseline = 'central';
       let x = 0;
       let y = 0;
 
       if (layout === 'vertical') {
-        x = 5 + entry.x + entry.width;
-        y = 5 + entry.y + entry.height / 2;
+        textAnchor = entry.width < 0 ? 'end' : 'start';
+        x = entry.x + entry.width + (entry.width < 0 ? -1 : 1) * 5;
+        y = entry.y + entry.height / 2;
       } else {
+        dominantBaseline = entry.height < 0 ? 'hanging' : 'inherit';
         x = entry.x + entry.width / 2;
-        y = entry.y - 5;
+        y = entry.y - (entry.height < 0 ? -1 : 1) * 5;
       }
 
       const labelProps = {
+        dominantBaseline,
         textAnchor,
         ...barProps,
         ...entry,
@@ -198,7 +218,7 @@ class Bar extends Component {
         y,
         index: i,
         key: `label-${i}`,
-        payload: entry,
+        payload: entry.payload,
       };
 
       let labelValue = entry.value;
@@ -211,16 +231,56 @@ class Bar extends Component {
     return <Layer className="recharts-bar-labels">{labels}</Layer>;
   }
 
+  renderErrorBar() {
+    if (this.props.isAnimationActive && !this.state.isAnimationFinished) { return null; }
+
+    const { data, xAxis, yAxis, layout, children } = this.props;
+    const errorBarItem = findChildByType(children, ErrorBar);
+
+    if (!errorBarItem) { return null; }
+
+    const offset = (layout === 'vertical') ? data[0].height / 2 : data[0].width / 2;
+
+    function dataPointFormatter(dataPoint, dataKey) {
+      return {
+        x: dataPoint.x,
+        y: dataPoint.y,
+        value: dataPoint.value,
+        errorVal: getValueByDataKey(dataPoint, dataKey),
+      };
+    }
+
+    return React.cloneElement(errorBarItem, {
+      data,
+      xAxis,
+      yAxis,
+      layout,
+      offset,
+      dataPointFormatter,
+    });
+  }
+
   render() {
-    const { data, className, label } = this.props;
+    const { data, className, label, xAxis, yAxis, left, top, width, height } = this.props;
 
     if (!data || !data.length) { return null; }
 
     const layerClass = classNames('recharts-bar', className);
+    const needClip = (xAxis && xAxis.allowDataOverflow) || (yAxis && yAxis.allowDataOverflow);
 
     return (
       <Layer className={layerClass}>
-        <Layer className="recharts-bar-rectangles">
+        {needClip ? (
+          <defs>
+            <clipPath id={`clipPath-${this.id}`}>
+              <rect x={left} y={top} width={width} height={height} />
+            </clipPath>
+          </defs>
+        ) : null}
+        <Layer
+          className="recharts-bar-rectangles"
+          clipPath={needClip ? `url(#clipPath-${this.id})` : null}
+        >
           {this.renderRectangles()}
         </Layer>
         {label && (
@@ -228,6 +288,7 @@ class Bar extends Component {
             {this.renderLabels()}
           </Layer>
         )}
+        {this.renderErrorBar()}
       </Layer>
     );
   }

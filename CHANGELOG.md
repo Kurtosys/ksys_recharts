@@ -1,3 +1,221 @@
+## 0.22.4 (Apr 26, 2017)
+
+### fix 
+
+- fix dot customized className
+
+### dep
+
+- update react-smooth, and react-transition-group
+
+## 0.22.3 (Apr 19, 2017)
+
+### refactor
+
+- add mathSign in DataUtils to replace Math.sign
+
+## 0.22.2 (Apr 18, 2017)
+
+### fix
+
+- fix spelling error of fillOpacity
+- fix bug of axis when has duplicated ticks
+
+
+## 0.22.1 (Apr 13, 2017)
+
+### feat
+
+- Add legendType: ‘none’ to not render coresponding legend item
+- use prop-types instead of React.PropTypes
+
+### fix
+
+- Fix re-rendering element bug when adding new elements
+- Fix circular dependence of Brush.js and LineChart.js 
+
+## 0.22.0 (Apr 05, 2017)
+
+### feat
+
+- Add event handlers to component  Dot
+- Support embedded chart as a panoram in Brush
+- Add props reversed to `XAxis` and `YAxis` to reverse the range of axis
+
+### fix
+
+- Fix error or time scale
+
+## 0.21.2 (Mar 01, 2017)
+
+### fix
+
+- fix ticks for specified domain
+
+## 0.21.1 (Feb 28, 2017)
+
+### fix
+
+- Update recharts-scale to fix bug of ticks
+
+## 0.21.0 (Feb 28, 2017)
+
+### feat
+
+- Support band area and band bar
+- support customized horizontal line and vertical line in CartesianGrid
+- support customized events in ReferenceArea, ReferenceLine
+- add formatter in `Legend`
+
+### fix
+
+- Fix empty tick when category axis has nil values
+- fix the propTypes of fontSize
+- support props dx and dy in Text
+- fix bug of stacked bar when spcify domain of axis
+- fix the barSize of bars in <Bar /> when too many bars
+
+## 0.20.8 (Feb 15, 2017)
+
+### fix
+
+- Fix bug when onBBoxUpdate of Legend is null
+
+## 0.20.7 (Feb 15, 2017)
+
+### fix
+
+- Fix stack chart when only have one stacked element
+- Fix the offset when the boundary box update
+- Fix position of XAxis in ScatterChart when the orientation is right
+- Use DataUtils.uniqueId to replace lodash.uniqueId
+
+### feat
+
+- Add props `mirror` in XAxis and YAxis, support mirror ticks
+- Add props iconType to the props of Legend which can specify the icon type of legend
+
+## 0.20.6 (Feb 08, 2017)
+
+### fix
+
+- Fix `dataStartIndex` and `dataEndIndex` of synchronized chart
+- Use lodash.uniqueId to produce the id of Pie
+
+## 0.20.5 (Jan 17, 2017)
+
+### fix
+
+- fix "Maximum call stack size exceeded error" caused by Tooltip update
+
+## 0.20.4 (Jan 17, 2017)
+
+### fix
+- Animate of Tooltip may crash browser sometimes, use style transition to do the animation of tooltip
+
+## 0.20.3 (Jan 17, 2017)
+
+### fix
+
+- Fix Tooltip in ScatterChart
+- Fix radius of Rectangle when height < 0
+
+### feat
+
+- Add clip path in Area, Bar and Scatter
+- Add onMouseDown and onMouseUp hooks in generateCategoricalChart
+
+### chore
+
+- Disable babel transform es2015 modules to commonjs for es6 build
+- Use cross-env to support windows builds, likewise downgrade linebreak-style to warning
+- Update release.sh
+
+## 0.20.2 (Jan 05, 2017)
+
+### fix
+
+- remove opacity in ErrorBar
+- fix `Tooltip` when `coordinate` is null
+
+### feat
+
+- add props `basevalue` in `AreaChart`
+- add clipPath when xAxis or yAxis of `Line` allow data overflow
+- allow dataKey to be a map function
+- support Tooltip in Sankey and Tooltip
+- Allow Brush to set default startIndex and endIndex
+
+## 0.20.1 (Dec 27, 2016)
+
+### fix
+
+- Fix bug of `isChildrenEqual`  when component has child `null`
+- Adjust `barGap` when `bandSize` is too small to display bars
+
+
+### feat
+
+- Add props `payload` and `value`, update props `index` in `activeDot` of `Line`, `Area`
+
+### refactor
+
+- Move polyfill of `Math.sign` to polyfill.js
+
+## 0.20.0 (Dec 26, 2016)
+
+### feat
+
+- Support `ErrorBar` in `Line`, `Area`, `Bar`, `Scatter`
+- Support touch event in `LineChart`, `AreaChart`, `BarChart`
+- Add props `throttleDelay` in `LineChart`, `AreaChart`, `BarChart` for performance
+- Support cornerRadius in Sector, RadialBar and Pie
+- Support events in CartesianAxis, PolarAngleAxis, PolarRadiusAxis
+- Support touch events in Brush
+
+### refactor
+
+- Use `getStringSize` to calculate the width of `Text`
+- Refactor children comparsion in `generateCategoricalChart`, and add updateId to force Brush update when children update
+- Refactor `getMouseInfo` to remove some duplicated codes in `generateCategoricalChart`
+- Refactor Tooltip and Legend, remove react-dom-server
+
+### fix
+
+- Fix the `chartId` in `handleReceiveSyncEvent` of `generateCategoricalChart` 
+
+## 0.19.1(Dec 15, 2016)
+
+### fix
+
+-  Adding missing event propTypes
+- support x, y of `Text` are number or text
+- fix proptypes of Scatter to allow that the props `data` can be a array of array
+- fix server side render check `isSsr`
+- remove duplicated "square" in legendType
+- fix `getStringSize` when server side rendering check fails
+- fix animation error when update Line which has props stroke-dasharray
+- fix bug of BarChart when add stackId in only one Bar and update test cases
+
+## 0.19.0 (Nov 23, 2016)
+
+### refactor
+
+- remove unneed `Animate` in `Bar` and `Rectangle`
+- refactor interval of `CartesianAxis`, support "preserveStart", "preserveEnd", "preserveStartEnd"
+- add payload in the `Tooltip` and `Scatter` of `ScatterChart`, and unify the payload of Components
+
+### feat
+
+- `RadialBar` support events triggered on the entire bar
+- support customized lable in `RadialBar`
+- support `maxHeight` in `ResponsiveContianer`
+
+### fix
+
+- fix multiple y-axes breaks chart when plotting only single datum
+- Relax propTypes.ticks in CartesianAxis
+
 ## 0.18.0 (Nov 15, 2016)
 
 ### feat

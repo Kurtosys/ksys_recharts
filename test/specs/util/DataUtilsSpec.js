@@ -2,7 +2,8 @@ import { expect } from 'chai';
 import { scaleLinear, scaleBand } from 'd3-scale';
 import { getPercentValue, validateCoordinateInRange,
   getBandSizeOfAxis, getAnyElementOfObject,
-  parseSpecifiedDomain } from '../../../src/util/DataUtils';
+  parseSpecifiedDomain, hasDuplicate, parseScale,
+  getValueByDataKey, mathSign } from '../../../src/util/DataUtils';
 
 describe('getPercentValue', () => {
   it('DataUtils.getPercentValue("25%", 1) should return 0.25 ', () => {
@@ -41,7 +42,7 @@ describe('getBandSizeOfAxis', () => {
 
   it('DataUtils.getBandSizeOfAxis({ type: "number", scale }, ticks) should return 0 ', () => {
     const axis = { type: 'number' };
-    const ticks = [{ coordinate: 13 }, { coordinate: 15 }, { coordinate: 20 }]
+    const ticks = [{ coordinate: 13 }, { coordinate: 15 }, { coordinate: 20 }];
     expect(getBandSizeOfAxis(axis, ticks)).to.equal(2);
   });
 });
@@ -70,5 +71,60 @@ describe('parseSpecifiedDomain', () => {
   it('DataUtils.parseSpecifiedDomain([-1, 120], domain) should return null ', () => {
     const result = parseSpecifiedDomain([-1, 120], domain);
     expect(result).to.deep.equal([-1, 120]);
+  });
+
+  it('DataUtils.parseSpecifiedDomain(["dataMin - 10", "dataMax + 10"], domain) should return null ', () => {
+    const result = parseSpecifiedDomain(['dataMin - 10', 'dataMax + 10'], domain);
+    expect(result).to.deep.equal([10, 110]);
+  });
+});
+
+describe('hasDuplicate', () => {
+  it('of an object should return false when input value is not an array', () => {
+    expect(hasDuplicate({})).to.be.false;
+  });
+
+  it('of [12, 12] should return true', () => {
+    expect(hasDuplicate([12, 12])).to.be.true;
+  });
+});
+
+describe('parseScale', () => {
+  it('of "time" ', () => {
+    expect(parseScale({ scale: 'time' })).to.be.instanceof(Function);
+  });
+
+  it('of [12, 12] should return true', () => {
+    expect(parseScale({ scale: scaleLinear() })).to.be.instanceof(Function);
+  });
+});
+
+describe('getValueByDataKey', () => {
+  const data = { a: 1, b: 2, c: 3 };
+
+  it('of function', () => {
+    const fn = (entry) => entry.a;
+
+    expect(getValueByDataKey(data, fn)).to.equal(1);
+  });
+
+  it('of object', () => {
+    expect(getValueByDataKey(data, {}, 0)).to.equal(0);
+  });
+});
+
+
+describe('mathSign', () => {
+
+  it('(0)', () => {
+    expect(mathSign(0)).to.equal(0);
+  });
+
+  it('(100)', () => {
+    expect(mathSign(100)).to.equal(1);
+  });
+
+  it('(-100)', () => {
+    expect(mathSign(-100)).to.equal(-1);
   });
 });

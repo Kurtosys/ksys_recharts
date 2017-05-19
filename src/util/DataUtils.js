@@ -1,6 +1,13 @@
 import _ from 'lodash';
 import * as d3Scales from 'd3-scale';
 
+export const mathSign = (value) => {
+  if (value === 0) { return 0; }
+  if (value > 0) { return 1; }
+
+  return -1;
+};
+
 export const isPercent = value => (
   _.isString(value) && value.indexOf('%') === value.length - 1
 );
@@ -12,6 +19,13 @@ export const isNumber = value => (
 export const isNumOrStr = value => (
   isNumber(value) || _.isString(value)
 );
+
+let idCounter = 0;
+export const uniqueId = (prefix) => {
+  const id = ++idCounter;
+
+  return `${prefix || ''}${id}`;
+};
 /**
  * Get percent value of a total value
  * @param {Number|String} percent A percent
@@ -100,11 +114,11 @@ export const validateCoordinateInRange = (coordinate, scale) => {
  * @return {Number} Size
  */
 export const getBandSizeOfAxis = (axis, ticks) => {
-  if (axis && axis.type === 'category' && axis.scale && axis.scale.bandwidth) {
+  if (axis && axis.scale && axis.scale.bandwidth) {
     return axis.scale.bandwidth();
   }
 
-  if (axis && axis.type === 'number' && ticks) {
+  if (axis && ticks && ticks.length >= 2) {
     const orderedTicks = _.sortBy(ticks, o => o.coordinate);
     let bandSize = Infinity;
 
@@ -205,4 +219,68 @@ export const parseScale = ({ scale, type }, chartType) => {
 
   return _.isFunction(scale) ? scale : d3Scales.scalePoint();
 };
+const EPS = 1e-4;
+export const checkDomainOfScale = (scale) => {
+  const domain = scale.domain();
 
+  if (!domain || domain.length <= 2) { return; }
+
+  const len = domain.length;
+  const range = scale.range();
+  const min = Math.min(range[0], range[1]) - EPS;
+  const max = Math.max(range[0], range[1]) + EPS;
+  const first = scale(domain[0]);
+  const last = scale(domain[len - 1]);
+
+  if (first < min || first > max || last < min || last > max) {
+    scale.domain([domain[0], domain[len - 1]]);
+  }
+};
+
+export const getValueByDataKey = (obj, dataKey, defaultValue) => {
+  if (_.isNil(obj) || _.isNil(dataKey)) { return defaultValue; }
+
+  if (isNumOrStr(dataKey)) { return _.get(obj, dataKey, defaultValue); }
+
+  if (_.isFunction(dataKey)) { return dataKey(obj); }
+
+  return defaultValue;
+};
+
+
+export const findPositionOfBar = (barPosition, child) => {
+  if (!barPosition) { return null; }
+
+  for (let i = 0, len = barPosition.length; i < len; i++) {
+    if (barPosition[i].item === child) {
+      return barPosition[i].position;
+    }
+  }
+
+  return null;
+};
+
+export const truncateByDomain = (value, domain) => {
+  if (!domain || domain.length !== 2 || !isNumber(domain[0]) ||
+    !isNumber(domain[1])) {
+    return value;
+  }
+
+  const min = Math.min(domain[0], domain[1]);
+  const max = Math.max(domain[0], domain[1]);
+
+  const result = [value[0], value[1]];
+  if (!isNumber(value[0]) || value[0] < min) {
+    result[0] = min;
+  }
+
+  if (!isNumber(value[1]) || value[1] > max) {
+    result[1] = max;
+  }
+
+  if (result[0] > max) { result[0] = max; }
+
+  if (result[1] < min) { result[1] = min; }
+
+  return result;
+};

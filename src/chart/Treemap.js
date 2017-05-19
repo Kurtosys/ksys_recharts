@@ -1,7 +1,8 @@
 /**
  * @fileOverview TreemapChart
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Smooth from 'react-smooth';
 import classNames from 'classnames';
 import _ from 'lodash';
@@ -12,6 +13,7 @@ import { findChildByType, getPresentationAttributes, filterSvgElements,
   validateWidthHeight, isSsr } from '../util/ReactUtils';
 import Tooltip from '../component/Tooltip';
 import pureRender from '../util/PureRender';
+import { getValueByDataKey } from '../util/DataUtils';
 
 const computeNode = ({ depth, node, index, valueKey }) => {
   const { children } = node;
@@ -198,7 +200,8 @@ class Treemap extends Component {
     fill: PropTypes.string,
     stroke: PropTypes.string,
     className: PropTypes.string,
-    dataKey: PropTypes.string,
+    nameKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]),
+    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]),
     children: PropTypes.oneOfType([
       PropTypes.arrayOf(PropTypes.node),
       PropTypes.node,
@@ -362,7 +365,7 @@ class Treemap extends Component {
     const isLeaf = !node.children || !node.children.length;
 
     return (
-      <Layer key={`recharts-treemap-node-${i}`}>
+      <Layer key={`recharts-treemap-node-${i}`} className={`recharts-treemap-depth-${node.depth}`}>
         {this.renderAnimatedItem(content, nodeProps, isLeaf)}
         {
           node.children && node.children.length ?
@@ -388,7 +391,7 @@ class Treemap extends Component {
   }
 
   renderTooltip() {
-    const { children } = this.props;
+    const { children, nameKey } = this.props;
     const tooltipItem = findChildByType(children, Tooltip);
 
     if (!tooltipItem) { return null; }
@@ -401,7 +404,9 @@ class Treemap extends Component {
       y: activeNode.y + activeNode.height / 2,
     } : null;
     const payload = isTooltipActive && activeNode ? [{
-      name: '', value: activeNode[dataKey],
+      payload: activeNode,
+      name: getValueByDataKey(activeNode, nameKey, ''),
+      value: getValueByDataKey(activeNode, dataKey),
     }] : [];
 
     return React.cloneElement(tooltipItem, {
@@ -410,7 +415,6 @@ class Treemap extends Component {
       coordinate,
       label: '',
       payload,
-      separator: '',
     });
   }
 

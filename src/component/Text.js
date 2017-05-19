@@ -1,8 +1,27 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import reduceCSSCalc from 'reduce-css-calc';
 import classNames from 'classnames';
 import _ from 'lodash';
+import { isNumber, isNumOrStr } from '../util/DataUtils';
 import { PRESENTATION_ATTRIBUTES, getPresentationAttributes, isSsr } from '../util/ReactUtils';
+import { getStringSize } from '../util/DOMUtils';
+
+const calculateWordWidths = (props) => {
+  try {
+    const words = !_.isNil(props.children) ? props.children.toString().split(/\s+/) : [];
+    const wordsWithComputedWidth = words.map(word => (
+      { word, width: getStringSize(word, props.style).width }
+    ));
+
+    const spaceWidth = getStringSize('\u00A0', props.style).width;
+
+    return { wordsWithComputedWidth, spaceWidth };
+  } catch (e) {
+    return null;
+  }
+};
+
 
 class Text extends Component {
 
@@ -12,6 +31,7 @@ class Text extends Component {
     angle: PropTypes.number,
     textAnchor: PropTypes.oneOf(['start', 'middle', 'end', 'inherit']),
     verticalAnchor: PropTypes.oneOf(['start', 'middle', 'end']),
+    style: PropTypes.object,
   };
 
   static defaultProps = {
@@ -33,20 +53,29 @@ class Text extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    const calculateWordWidths = (
+    const needCalculate = (
       this.props.children !== nextProps.children ||
       this.props.style !== nextProps.style
     );
-    this.updateWordsByLines(nextProps, calculateWordWidths);
+    this.updateWordsByLines(nextProps, needCalculate);
   }
 
-  updateWordsByLines(props, calculateWordWidths) {
+  updateWordsByLines(props, needCalculate) {
     // Only perform calculations if using features that require them (multiline, scaleToFit)
     if ((props.width || props.scaleToFit) && !isSsr()) {
-      if (calculateWordWidths) {
-        const { wordsWithComputedWidth, spaceWidth } = this.calculateWordWidths(props);
-        this.wordsWithComputedWidth = wordsWithComputedWidth;
-        this.spaceWidth = spaceWidth;
+      if (needCalculate) {
+        const wordWidths = calculateWordWidths(props);
+
+        if (wordWidths) {
+          const { wordsWithComputedWidth, spaceWidth } = wordWidths;
+
+          this.wordsWithComputedWidth = wordsWithComputedWidth;
+          this.spaceWidth = spaceWidth;
+        } else {
+          this.updateWordsWithoutCalculate(props);
+
+          return;
+        }
       }
 
       const wordsByLines = this.calculateWordsByLines(
@@ -56,31 +85,13 @@ class Text extends Component {
       );
       this.setState({ wordsByLines });
     } else {
-      const words = !_.isNil(props.children) ? props.children.toString().split(/\s+/) : [];
-      this.setState({ wordsByLines: [{ words }] });
+      this.updateWordsWithoutCalculate(props);
     }
   }
 
-  calculateWordWidths(props) {
-    // Calculate length of each word to be used to determine number of words per line
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    _.assign(text.style, props.style);
-    svg.appendChild(text);
-    document.body.appendChild(svg);
-
+  updateWordsWithoutCalculate(props) {
     const words = !_.isNil(props.children) ? props.children.toString().split(/\s+/) : [];
-    const wordsWithComputedWidth = words.map((word) => {
-      text.textContent = word;
-      return { word, width: text.getComputedTextLength() };
-    });
-
-    text.textContent = '\u00A0'; // Unicode space
-    const spaceWidth = text.getComputedTextLength();
-
-    document.body.removeChild(svg);
-
-    return { wordsWithComputedWidth, spaceWidth };
+    this.setState({ wordsByLines: [{ words }] });
   }
 
   calculateWordsByLines(wordsWithComputedWidth, spaceWidth, lineWidth) {
@@ -105,6 +116,8 @@ class Text extends Component {
 
   render() {
     const {
+      dx,
+      dy,
       textAnchor,
       verticalAnchor,
       scaleToFit,
@@ -115,7 +128,10 @@ class Text extends Component {
       ...textProps
     } = this.props;
     const { wordsByLines } = this.state;
-    const { x, y } = textProps;
+
+    if (!isNumOrStr(textProps.x) || !isNumOrStr(textProps.y)) { return null; }
+    const x = textProps.x + (isNumber(dx) ? dx : 0);
+    const y = textProps.y + (isNumber(dy) ? dy : 0);
 
     let startDy;
     switch (verticalAnchor) {
@@ -147,6 +163,8 @@ class Text extends Component {
     return (
       <text
         {...getPresentationAttributes(textProps)}
+        x={x}
+        y={y}
         className={classNames('recharts-text', className)}
         textAnchor={textAnchor}
       >

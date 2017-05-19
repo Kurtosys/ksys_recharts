@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { changeNumberOfData } from './utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Brush, Legend,
   ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer } from 'recharts';
@@ -31,32 +31,42 @@ const data02 = [
   { name: 'Page E', uv: 1890, pv: 4800, amt: 2181 },
 ];
 
+const rangeData = [
+  { day: '05-01', temperature: [-1, 10] },
+  { day: '05-02', temperature: [2, 15] },
+  { day: '05-03', temperature: [3, 12] },
+  { day: '05-04', temperature: [4, 12] },
+  { day: '05-05', temperature: [12, 16] },
+  { day: '05-06', temperature: [5, 16] },
+  { day: '05-07', temperature: [3, 12] },
+  { day: '05-08', temperature: [0, 8] },
+  { day: '05-09', temperature: [-3, 5] },
+];
+
 const initilaState = { data, data01, data02 };
 
-const CustomTooltip = React.createClass({
-  render() {
-    const { active, payload, external, label } = this.props;
+const CustomTooltip = (props) => {
+  const { active, payload, external, label } = props;
 
-    if (active) {
-      const style = {
-        padding: 6,
-        backgroundColor: '#fff',
-        border: '1px solid #ccc',
-      };
+  if (active) {
+    const style = {
+      padding: 6,
+      backgroundColor: '#fff',
+      border: '1px solid #ccc',
+    };
 
-      const currData = external.filter(entry => (entry.name === label))[0];
+    const currData = external.filter(entry => (entry.name === label))[0];
 
-      return (
-        <div className="area-chart-tooltip" style={style}>
-          <p>{payload[0].name + ' : '}<em>{payload[0].value}</em></p>
-          <p>{'uv : '}<em>{currData.uv}</em></p>
-        </div>
-      );
-    }
+    return (
+      <div className="area-chart-tooltip" style={style}>
+        <p>{payload[0].name + ' : '}<em>{payload[0].value}</em></p>
+        <p>{'uv : '}<em>{currData.uv}</em></p>
+      </div>
+    );
+  }
 
-    return null;
-  },
-});
+  return null;
+};
 
 const renderCustomizedActiveDot = (props) => {
   const { cx, cy, stroke, index, dataKey } = props;
@@ -84,16 +94,17 @@ function CustomizedAxisTick(props) {
   );
 }
 
-export default React.createClass({
-  displayName: 'AreaChartDemo',
+export default class AreaChartDemo extends Component {
+
+  static displayName = 'AreaChartDemo';
 
   getInitialState() {
     return initilaState;
-  },
+  }
 
   handleChangeData() {
     this.setState(() => _.mapValues(initilaState, changeNumberOfData));
-  },
+  }
 
   render() {
     const { data, data01, data02 } = this.state;
@@ -150,7 +161,6 @@ export default React.createClass({
             <Legend layout="vertical" />
           </AreaChart>
         </div>
-
 
         <p>Stacked AreaChart | Stack Offset Expand</p>
         <div className="area-chart-wrapper">
@@ -332,7 +342,22 @@ export default React.createClass({
             <Area type="stepAfter" dataKey="weather" stroke="#0088FE" />
           </AreaChart>
         </div>
+
+        <p>AreaChart of range values</p>
+        <div className="area-chart-wrapper">
+          <AreaChart
+            width={400}
+            height={400}
+            data={rangeData}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
+            <XAxis dataKey="day" />
+            <YAxis />
+            <Area dataKey="temperature" stroke="#0088FE" />
+            <Tooltip />
+          </AreaChart>
+        </div>
       </div>
     );
-  },
-});
+  }
+};

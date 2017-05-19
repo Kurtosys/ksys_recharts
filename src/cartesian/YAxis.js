@@ -1,7 +1,8 @@
 /**
  * @fileOverview Y Axis
  */
-import { Component, PropTypes } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from '../util/PureRender';
 
 @pureRender
@@ -24,7 +25,7 @@ class YAxis extends Component {
       PropTypes.oneOf(['auto', 'dataMin', 'dataMax']),
     ])),
     // The key of data displayed in the axis
-    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]),
     // Ticks can be any type when the axis is the type of category
     // Ticks must be numbers when the axis is the type of number
     ticks: PropTypes.array,
@@ -36,6 +37,7 @@ class YAxis extends Component {
     width: PropTypes.number,
     // The height of axis which is usually calculated in Chart
     height: PropTypes.number,
+    mirror: PropTypes.bool,
     // The orientation of axis
     orientation: PropTypes.oneOf(['left', 'right']),
     type: PropTypes.oneOf(['number', 'category']),
@@ -50,6 +52,20 @@ class YAxis extends Component {
         'threshold']),
       PropTypes.func,
     ]),
+    label: PropTypes.oneOfType([
+      PropTypes.number, PropTypes.string, PropTypes.func, PropTypes.element,
+    ]),
+    tick: PropTypes.oneOfType([
+      PropTypes.bool, PropTypes.func, PropTypes.object, PropTypes.element,
+    ]),
+    axisLine: PropTypes.oneOfType([PropTypes.bool, PropTypes.object]),
+    tickLine: PropTypes.oneOfType([PropTypes.bool, PropTypes.object]),
+    minTickGap: PropTypes.number,
+    tickSize: PropTypes.number,
+    interval: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([
+      'preserveStart', 'preserveEnd', 'preserveStartEnd',
+    ])]),
+    reversed: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -58,6 +74,7 @@ class YAxis extends Component {
     orientation: 'left',
     width: 60,
     height: 0,
+    mirror: false,
     yAxisId: 0,
     tickCount: 5,
     type: 'number',
@@ -65,6 +82,7 @@ class YAxis extends Component {
     padding: { top: 0, bottom: 0 },
     allowDataOverflow: false,
     scale: 'auto',
+    reversed: false,
   };
 
   render() {

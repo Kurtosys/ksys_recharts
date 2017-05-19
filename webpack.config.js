@@ -1,6 +1,7 @@
 var path = require('path');
 var LodashModuleReplacementPlugin = require('lodash-webpack-plugin');
 var webpack = require('webpack');
+var BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 var env = process.env.NODE_ENV;
 
 var config = {
@@ -18,7 +19,7 @@ var config = {
       include: [
         path.resolve(__dirname, 'src'),
       ],
-      loader: 'babel',
+      loader: 'babel-loader',
       query: {
         plugins: ['lodash'],
       },
@@ -28,9 +29,8 @@ var config = {
   resolve: {
     alias: {
       react: path.resolve(__dirname, './node_modules/react'),
-      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
-      'react-addons-transition-group':
-          path.resolve(__dirname, './node_modules/react-addons-transition-group'),
+      'react-transition-group':
+          path.resolve(__dirname, './node_modules/react-transition-group'),
     },
   },
 
@@ -41,23 +41,17 @@ var config = {
       commonjs: 'react',
       amd: 'react',
     },
-    'react-dom': {
-      root: 'ReactDOM',
-      commonjs2: 'react-dom',
-      commonjs: 'react-dom',
-      amd: 'react-dom',
+    'react-transition-group': {
+      root: ['ReactTransitionGroup'],
+      commonjs2: 'react-transition-group',
+      commonjs: 'react-transition-group',
+      amd: 'react-transition-group',
     },
-    'react-dom/server': {
-      root: 'ReactDOMServer',
-      commonjs2: 'react-dom-server',
-      commonjs: 'react-dom-server',
-      amd: 'react-dom-server',
-    },
-    'react-addons-transition-group': {
-      root: ['React', 'addons', 'TransitionGroup'],
-      commonjs2: 'react-addons-transition-group',
-      commonjs: 'react-addons-transition-group',
-      amd: 'react-addons-transition-group',
+    'prop-types': {
+      root: 'PropTypes',
+      commonjs2: 'prop-types',
+      commonjs: 'prop-types',
+      amd: 'prop-types',
     },
   },
 
@@ -71,6 +65,12 @@ var config = {
     }),
   ],
 };
+
+if (env === 'analyse') {
+  config.plugins.push(
+    new BundleAnalyzerPlugin()
+  );
+}
 
 if (env === 'production') {
   config.plugins.push(

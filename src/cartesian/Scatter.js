@@ -1,16 +1,19 @@
 /**
  * @fileOverview Render a group of scatters
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Animate from 'react-smooth';
 import classNames from 'classnames';
 import _ from 'lodash';
 import pureRender from '../util/PureRender';
 import Layer from '../container/Layer';
-import { PRESENTATION_ATTRIBUTES, getPresentationAttributes,
-  filterEventsOfChild, isSsr } from '../util/ReactUtils';
+import { PRESENTATION_ATTRIBUTES, EVENT_ATTRIBUTES, LEGEND_TYPES,
+  getPresentationAttributes, filterEventsOfChild, isSsr, findAllByType } from '../util/ReactUtils';
 import Curve from '../shape/Curve';
 import Symbols from '../shape/Symbols';
+import ErrorBar from './ErrorBar';
+import { getValueByDataKey, uniqueId } from '../util/DataUtils';
 import AnimationDecorator from '../util/AnimationDecorator';
 
 @AnimationDecorator
@@ -20,6 +23,7 @@ class Scatter extends Component {
   static displayName = 'Scatter';
 
   static propTypes = {
+    ...EVENT_ATTRIBUTES,
     ...PRESENTATION_ATTRIBUTES,
 
     xAxisId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -33,10 +37,7 @@ class Scatter extends Component {
       'basis', 'basisClosed', 'basisOpen', 'linear', 'linearClosed', 'natural',
       'monotoneX', 'monotoneY', 'monotone', 'step', 'stepBefore', 'stepAfter',
     ]), PropTypes.func]),
-    legendType: PropTypes.oneOf([
-      'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square', 'star',
-      'triangle', 'wye',
-    ]),
+    legendType: PropTypes.oneOf(LEGEND_TYPES),
     className: PropTypes.string,
 
     activeIndex: PropTypes.number,
@@ -52,15 +53,13 @@ class Scatter extends Component {
       cx: PropTypes.number,
       cy: PropTypes.number,
       size: PropTypes.number,
-      payload: PropTypes.shape({
+      node: PropTypes.shape({
         x: PropTypes.number,
         y: PropTypes.number,
         z: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
       }),
+      payload: PropTypes.any,
     })),
-    onMouseEnter: PropTypes.func,
-    onMouseLeave: PropTypes.func,
-    onClick: PropTypes.func,
 
     isAnimationActive: PropTypes.bool,
     animationId: PropTypes.number,
@@ -85,7 +84,14 @@ class Scatter extends Component {
     animationEasing: 'linear',
   };
 
-  state = { activeIndex: -1 };
+  state = { activeIndex: -1, isAnimationFinished: false };
+
+  componentDidMount() {
+    const { animationDuration } = this.props;
+    window.setTimeout(() => this.setState({ isAnimationFinished: true }), animationDuration);
+  }
+
+  id = uniqueId('recharts-scatter-');
 
   renderSymbolItem(option, props) {
     let symbol;
@@ -100,7 +106,6 @@ class Scatter extends Component {
 
     return symbol;
   }
-
 
   renderSymbols() {
     const { points, shape, activeShape, activeIndex, animationBegin,
@@ -141,6 +146,46 @@ class Scatter extends Component {
     });
   }
 
+  renderErrorBar() {
+    if (!this.state.isAnimationFinished) { return null; }
+
+    const { points, xAxis, yAxis, children } = this.props;
+    const errorBarItems = findAllByType(children, ErrorBar);
+
+    if (!errorBarItems) { return null; }
+
+    function dataPointFormatterY(dataPoint, dataKey) {
+      return {
+        x: dataPoint.cx,
+        y: dataPoint.cy,
+        value: dataPoint.y,
+        errorVal: getValueByDataKey(dataPoint, dataKey),
+      };
+    }
+
+    function dataPointFormatterX(dataPoint, dataKey) {
+      return {
+        x: dataPoint.cx,
+        y: dataPoint.cy,
+        value: dataPoint.x,
+        errorVal: getValueByDataKey(dataPoint, dataKey),
+      };
+    }
+
+    return errorBarItems.map((item, i) => {
+      const { direction } = item.props;
+
+      return React.cloneElement(item, {
+        key: i,
+        data: points,
+        xAxis,
+        yAxis,
+        layout: direction === 'x' ? 'vertical' : 'horizontal',
+        dataPointFormatter: direction === 'x' ? dataPointFormatterX : dataPointFormatterY,
+      });
+    });
+  }
+
   renderLine() {
     const { points, line, lineType, lineJointType } = this.props;
     const scatterProps = getPresentationAttributes(this.props);
@@ -174,15 +219,27 @@ class Scatter extends Component {
   }
 
   render() {
-    const { points, line, className } = this.props;
+    const { points, line, className, xAxis, yAxis, left, top, width, height } = this.props;
 
     if (!points || !points.length) { return null; }
 
     const layerClass = classNames('recharts-scatter', className);
+    const needClip = (xAxis && xAxis.allowDataOverflow) || (yAxis && yAxis.allowDataOverflow);
 
     return (
-      <Layer className={layerClass}>
+      <Layer
+        className={layerClass}
+        clipPath={needClip ? `url(#clipPath-${this.id})` : null}
+      >
+        {needClip ? (
+          <defs>
+            <clipPath id={`clipPath-${this.id}`}>
+              <rect x={left} y={top} width={width} height={height} />
+            </clipPath>
+          </defs>
+        ) : null}
         {line && this.renderLine()}
+        {this.renderErrorBar()}
         <Layer key="recharts-scatter-symbols">
           {this.renderSymbols()}
         </Layer>

@@ -1,13 +1,15 @@
 /**
  * @fileOverview Default Legend Content
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from '../util/PureRender';
 import Surface from '../container/Surface';
 import Symbols from '../shape/Symbols';
-import { filterEventsOfChild } from '../util/ReactUtils';
+import { filterEventsOfChild, LEGEND_TYPES } from '../util/ReactUtils';
 
 const SIZE = 32;
+const ICON_TYPES = LEGEND_TYPES.filter(type => type !== 'none');
 
 @pureRender
 class DefaultLegendContent extends Component {
@@ -16,17 +18,16 @@ class DefaultLegendContent extends Component {
   static propTypes = {
     content: PropTypes.element,
     iconSize: PropTypes.number,
+    iconType: PropTypes.oneOf(ICON_TYPES),
     layout: PropTypes.oneOf(['horizontal', 'vertical']),
     align: PropTypes.oneOf(['center', 'left', 'right']),
     verticalAlign: PropTypes.oneOf(['top', 'bottom', 'middle']),
     payload: PropTypes.arrayOf(PropTypes.shape({
       value: PropTypes.any,
       id: PropTypes.any,
-      type: PropTypes.oneOf([
-        'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square',
-        'star', 'triangle', 'wye',
-      ]),
+      type: PropTypes.oneOf(LEGEND_TYPES),
     })),
+    formatter: PropTypes.func,
     onMouseEnter: PropTypes.func,
     onMouseLeave: PropTypes.func,
     onClick: PropTypes.func,
@@ -91,7 +92,7 @@ class DefaultLegendContent extends Component {
    * @return {ReactElement} Items
    */
   renderItems() {
-    const { payload, iconSize, layout } = this.props;
+    const { payload, iconSize, layout, formatter } = this.props;
     const viewBox = { x: 0, y: 0, width: SIZE, height: SIZE };
     const itemStyle = {
       display: layout === 'horizontal' ? 'inline-block' : 'block',
@@ -99,19 +100,29 @@ class DefaultLegendContent extends Component {
     };
     const svgStyle = { display: 'inline-block', verticalAlign: 'middle', marginRight: 4 };
 
-    return payload.map((entry, i) => (
-      <li
-        className={`recharts-legend-item legend-item-${i}`}
-        style={itemStyle}
-        key={`legend-item-${i}`}
-        {...filterEventsOfChild(this.props, entry, i)}
-      >
-        <Surface width={iconSize} height={iconSize} viewBox={viewBox} style={svgStyle}>
-          {this.renderIcon(entry, iconSize)}
-        </Surface>
-        <span className="recharts-legend-item-text">{entry.value}</span>
-      </li>
-    ));
+    return payload.map((entry, i) => {
+      const finalFormatter = entry.formatter || formatter;
+
+      if (entry.type === 'none') {
+        return null;
+      }
+
+      return (
+        <li
+          className={`recharts-legend-item legend-item-${i}`}
+          style={itemStyle}
+          key={`legend-item-${i}`}
+          {...filterEventsOfChild(this.props, entry, i)}
+        >
+          <Surface width={iconSize} height={iconSize} viewBox={viewBox} style={svgStyle}>
+            {this.renderIcon(entry, iconSize)}
+          </Surface>
+          <span className="recharts-legend-item-text">
+            {finalFormatter ? finalFormatter(entry.value, entry, i) : entry.value}
+          </span>
+        </li>
+      );
+    });
   }
 
   render() {

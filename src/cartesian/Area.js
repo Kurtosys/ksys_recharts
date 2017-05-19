@@ -1,7 +1,8 @@
 /**
  * @fileOverview Area
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Animate from 'react-smooth';
 import _ from 'lodash';
@@ -10,8 +11,9 @@ import Dot from '../shape/Dot';
 import Layer from '../container/Layer';
 import Text from '../component/Text';
 import pureRender from '../util/PureRender';
-import { PRESENTATION_ATTRIBUTES, getPresentationAttributes, isSsr } from '../util/ReactUtils';
-import { isNumber } from '../util/DataUtils';
+import { PRESENTATION_ATTRIBUTES, EVENT_ATTRIBUTES, LEGEND_TYPES,
+  getPresentationAttributes, isSsr } from '../util/ReactUtils';
+import { isNumber, uniqueId } from '../util/DataUtils';
 
 @pureRender
 class Area extends Component {
@@ -20,8 +22,9 @@ class Area extends Component {
 
   static propTypes = {
     ...PRESENTATION_ATTRIBUTES,
+    ...EVENT_ATTRIBUTES,
     className: PropTypes.string,
-    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.func]).isRequired,
     type: PropTypes.oneOfType([PropTypes.oneOf([
       'basis', 'basisClosed', 'basisOpen', 'linear', 'linearClosed', 'natural',
       'monotoneX', 'monotoneY', 'monotone', 'step', 'stepBefore', 'stepAfter',
@@ -30,11 +33,10 @@ class Area extends Component {
     name: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     yAxisId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     xAxisId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    yAxis: PropTypes.object,
+    xAxis: PropTypes.object,
     stackId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    legendType: PropTypes.oneOf([
-      'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square', 'star',
-      'triangle', 'wye',
-    ]),
+    legendType: PropTypes.oneOf(LEGEND_TYPES),
     connectNulls: PropTypes.bool,
 
     activeDot: PropTypes.oneOfType([
@@ -47,20 +49,18 @@ class Area extends Component {
     label: PropTypes.oneOfType([
       PropTypes.func, PropTypes.element, PropTypes.object, PropTypes.bool,
     ]),
+
     // have curve configuration
-    curve: PropTypes.bool,
     layout: PropTypes.oneOf(['horizontal', 'vertical']),
     baseLine: PropTypes.oneOfType([
       PropTypes.number, PropTypes.array,
     ]),
+    isRange: PropTypes.bool,
     points: PropTypes.arrayOf(PropTypes.shape({
       x: PropTypes.number,
       y: PropTypes.number,
       value: PropTypes.oneOfType([PropTypes.number, PropTypes.array]),
     })),
-    onMouseEnter: PropTypes.func,
-    onMouseLeave: PropTypes.func,
-    onClick: PropTypes.func,
     onAnimationStart: PropTypes.func,
     onAnimationEnd: PropTypes.func,
 
@@ -83,9 +83,7 @@ class Area extends Component {
     points: [],
     dot: false,
     label: false,
-    curve: true,
     activeDot: true,
-
 
     isAnimationActive: !isSsr(),
     animationBegin: 0,
@@ -96,14 +94,9 @@ class Area extends Component {
     onAnimationEnd: () => {},
   };
 
-  constructor(props, ctx) {
-    super(props, ctx);
+  state = { isAnimationFinished: true };
 
-    this.state = { isAnimationFinished: true };
-    if (!this.id) {
-      this.id = `clipPath${Date.now()}`;
-    }
-  }
+  id = uniqueId('recharts-area-');
 
   handleAnimationEnd = () => {
     this.setState({ isAnimationFinished: true });
@@ -116,11 +109,11 @@ class Area extends Component {
   };
 
   renderCurve() {
-    const { layout, type, curve, points, connectNulls } = this.props;
+    const { layout, type, stroke, points, baseLine, connectNulls, isRange } = this.props;
 
     return (
       <g>
-        {curve && (
+        {stroke !== 'none' && (
           <Curve
             {...getPresentationAttributes(this.props)}
             className="recharts-area-curve"
@@ -129,6 +122,17 @@ class Area extends Component {
             connectNulls={connectNulls}
             fill="none"
             points={points}
+          />
+        )}
+        {stroke !== 'none' && isRange && (
+          <Curve
+            {...getPresentationAttributes(this.props)}
+            className="recharts-area-curve"
+            layout={layout}
+            type={type}
+            connectNulls={connectNulls}
+            fill="none"
+            points={baseLine}
           />
         )}
         <Curve
@@ -202,7 +206,7 @@ class Area extends Component {
 
     return (
       <defs>
-        <clipPath id={this.id}>
+        <clipPath id={`animationClipPath-${this.id}`}>
           <Animate
             easing={animationEasing}
             isActive={isAnimationActive}
@@ -253,7 +257,8 @@ class Area extends Component {
         cx: entry.x,
         cy: entry.y,
         index: i,
-        payload: entry,
+        value: entry.value,
+        payload: entry.payload,
       };
 
       return this.renderDotItem(dot, dotProps);
@@ -301,7 +306,8 @@ class Area extends Component {
         ...customLabelProps,
         index: i,
         key: `label-${i}`,
-        payload: entry,
+        value: entry.value,
+        payload: entry.payload,
       };
 
       return this.renderLabelItem(label, labelProps, entry.value);
@@ -311,23 +317,33 @@ class Area extends Component {
   }
 
   render() {
-    const { dot, label, points, className } = this.props;
+    const { dot, label, points, className, top, left, xAxis, yAxis, width, height } = this.props;
 
     if (!points || !points.length) { return null; }
 
     const hasSinglePoint = points.length === 1;
     const layerClass = classNames('recharts-area', className);
+    const needClip = (xAxis && xAxis.allowDataOverflow) || (yAxis && yAxis.allowDataOverflow);
 
     return (
       <Layer className={layerClass}>
+        {needClip ? (
+          <defs>
+            <clipPath id={`clipPath-${this.id}`}>
+              <rect x={left} y={top} width={width} height={height} />
+            </clipPath>
+          </defs>
+        ) : null}
         {
           !hasSinglePoint ? this.renderClipPath() : null
         }
         {
           !hasSinglePoint ? (
-            <g clipPath={`url(#${this.id})`}>
-              {this.renderCurve()}
-            </g>
+            <Layer clipPath={needClip ? `url(#clipPath-${this.id})` : null}>
+              <Layer clipPath={`url(#animationClipPath-${this.id})`}>
+                {this.renderCurve()}
+              </Layer>
+            </Layer>
           ) : null
         }
         {(dot || hasSinglePoint) && this.renderDots()}

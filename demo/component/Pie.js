@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { Surface, Pie } from 'recharts';
 
 const data = [
@@ -7,17 +7,26 @@ const data = [
   { name: 'iphone5', value: 600, fill: '#907213' }
 ];
 
-export default React.createClass({
-  displayName: 'PieDemo',
+export default class PieDemo extends React.Component {
+  static displayName = 'PieDemo';
 
   render () {
     return (
       <Surface width={500} height={500}>
-        <Pie startAngle={180} endAngle={0} cx={250} cy={250} outerRadius={200} innerRadius={180} data={data} paddingAngle={10}/>
+        <Pie
+          startAngle={180}
+          endAngle={0}
+          cx={250}
+          cy={250}
+          outerRadius={200}
+          innerRadius={180}
+          data={data}
+          paddingAngle={10}
+        />
         <line x1={0} y1={250} x2={500} y2={250} stroke="black"/>
       </Surface>
     );
   }
-});
+}
 
 

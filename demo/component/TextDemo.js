@@ -81,9 +81,9 @@ class TextDemo extends Component {
             onChange={e => this.setState({ width: Number(e.target.value) })}
           /> {this.state.width}
         </div>
-        
+
         <div>
-          textAnchor: 
+          textAnchor:
           <label>
             <input
               type="radio"
@@ -276,6 +276,13 @@ class TextDemo extends Component {
         <h2>Fit</h2>
         <svg width={this.state.resizeSvg ? this.state.width : 300} style={styles.svg}>
           <Text width={this.state.width} verticalAnchor="start" scaleToFit>
+            {this.state.exampleText}
+          </Text>
+        </svg>
+
+        <h2>dx && dy</h2>
+        <svg width={this.state.resizeSvg ? this.state.width : 300} style={styles.svg}>
+          <Text x={50} y={50} dx={10} dy={-10}  width={this.state.width} verticalAnchor="start">
             {this.state.exampleText}
           </Text>
         </svg>

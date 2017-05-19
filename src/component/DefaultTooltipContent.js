@@ -1,9 +1,17 @@
 /**
  * @fileOverview Default Tooltip Content
  */
-import React, { Component, PropTypes } from 'react';
+import _ from 'lodash';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import pureRender from '../util/PureRender';
 import { isNumOrStr } from '../util/DataUtils';
+
+const defaultFormatter = value => (
+  (_.isArray(value) && isNumOrStr(value[0]) && isNumOrStr(value[1])) ?
+    value.join(' ~ ') :
+    value
+);
 
 @pureRender
 class DefaultTooltipContent extends Component {
@@ -20,7 +28,7 @@ class DefaultTooltipContent extends Component {
     label: PropTypes.any,
     payload: PropTypes.arrayOf(PropTypes.shape({
       name: PropTypes.any,
-      value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+      value: PropTypes.oneOfType([PropTypes.number, PropTypes.string, PropTypes.array]),
       unit: PropTypes.any,
     })),
     itemSorter: PropTypes.func,
@@ -38,7 +46,7 @@ class DefaultTooltipContent extends Component {
     if (payload && payload.length) {
       const listStyle = { padding: 0, margin: 0 };
 
-      const items = payload.filter(entry => isNumOrStr(entry.value))
+      const items = payload.filter(entry => !_.isNil(entry.value))
       .sort(itemSorter)
       .map((entry, i) => {
         const finalItemStyle = {
@@ -48,14 +56,18 @@ class DefaultTooltipContent extends Component {
           color: entry.color || '#000',
           ...itemStyle,
         };
-        const finalFormatter = entry.formatter || formatter;
+        const finalFormatter = entry.formatter || formatter || defaultFormatter;
 
         return (
           <li className="recharts-tooltip-item" key={`tooltip-item-${i}`} style={finalItemStyle}>
-            <span className="recharts-tooltip-item-name">{entry.name}</span>
-            <span className="recharts-tooltip-item-separator">{separator}</span>
+            {entry.name ? <span className="recharts-tooltip-item-name">{entry.name}</span> : null}
+            {
+              entry.name ?
+                <span className="recharts-tooltip-item-separator">{separator}</span> :
+                null
+            }
             <span className="recharts-tooltip-item-value">
-              {finalFormatter ? finalFormatter(entry.value, entry.name, entry) : entry.value}
+              {finalFormatter ? finalFormatter(entry.value, entry.name, entry, i) : entry.value}
             </span>
             <span className="recharts-tooltip-item-unit">{entry.unit || ''}</span>
           </li>

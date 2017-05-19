@@ -1,17 +1,19 @@
 /**
  * @fileOverview Render a group of radial bar
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Animate from 'react-smooth';
 import _ from 'lodash';
 import Sector from '../shape/Sector';
 import Layer from '../container/Layer';
 import { getStringSize } from '../util/DOMUtils';
-import { PRESENTATION_ATTRIBUTES, getPresentationAttributes,
-  filterEventsOfChild, isSsr } from '../util/ReactUtils';
+import { PRESENTATION_ATTRIBUTES, LEGEND_TYPES,
+  getPresentationAttributes, filterEventsOfChild, isSsr } from '../util/ReactUtils';
 import pureRender from '../util/PureRender';
 import { polarToCartesian } from '../util/PolarUtils';
+import { uniqueId, mathSign } from '../util/DataUtils';
 
 const RADIAN = Math.PI / 180;
 
@@ -29,6 +31,7 @@ class RadialBar extends Component {
     ]),
     activeIndex: PropTypes.number,
 
+    cornerRadius: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     cx: PropTypes.number,
     cy: PropTypes.number,
     startAngle: PropTypes.number,
@@ -42,10 +45,7 @@ class RadialBar extends Component {
       outerRadius: PropTypes.number,
       value: PropTypes.value,
     })),
-    legendType: PropTypes.oneOf([
-      'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square',
-      'star', 'triangle', 'wye',
-    ]),
+    legendType: PropTypes.oneOf(LEGEND_TYPES),
     label: PropTypes.oneOfType([
       PropTypes.bool, PropTypes.func, PropTypes.element, PropTypes.object,
     ]),
@@ -84,7 +84,7 @@ class RadialBar extends Component {
 
   getDeltaAngle() {
     const { startAngle, endAngle } = this.props;
-    const sign = Math.sign(endAngle - startAngle);
+    const sign = mathSign(endAngle - startAngle);
     const deltaAngle = Math.min(Math.abs(endAngle - startAngle), 360);
 
     return sign * deltaAngle;
@@ -102,7 +102,7 @@ class RadialBar extends Component {
     const sectors = data.map((entry) => {
       const value = entry.value;
       const tempEndAngle = maxValue === 0 ? startAngle :
-        startAngle + Math.sign(value * deltaAngle) * (
+        startAngle + mathSign(value * deltaAngle) * (
           absMinAngle + gapAngle * Math.abs(entry.value) / maxValue
         );
 
@@ -178,7 +178,7 @@ class RadialBar extends Component {
   }
 
   renderSectors(sectors) {
-    const { shape, activeShape, activeIndex } = this.props;
+    const { shape, activeShape, activeIndex, cornerRadius } = this.props;
     const {
       animationEasing,
       animationDuration,
@@ -207,6 +207,7 @@ class RadialBar extends Component {
           ({ angle }) => {
             const props = {
               ...baseProps,
+              cornerRadius,
               ...entry,
               ...filterEventsOfChild(this.props, entry, i),
               endAngle: angle,
@@ -223,16 +224,18 @@ class RadialBar extends Component {
   }
 
   renderBackground(sectors) {
-    const { startAngle, endAngle, background } = this.props;
+    const { startAngle, endAngle, background, cornerRadius } = this.props;
     const backgroundProps = getPresentationAttributes(background);
 
     return sectors.map((entry, i) => {
       // eslint-disable-next-line no-unused-vars
       const { value, ...rest } = entry;
       const props = {
+        cornerRadius,
         ...rest,
         fill: '#eee',
         ...backgroundProps,
+        ...filterEventsOfChild(this.props, entry, i),
         startAngle,
         endAngle,
         index: i,
@@ -244,30 +247,48 @@ class RadialBar extends Component {
     });
   }
 
+  renderLabelItem(option, props, value) {
+    let labelItem;
+
+    if (React.isValidElement(option)) {
+      labelItem = React.cloneElement(option, props);
+    } else if (_.isFunction(option)) {
+      labelItem = option(props);
+    } else {
+      const id = uniqueId('recharts-defs-');
+      const filteredProps = getPresentationAttributes(props);
+      const path = this.getLabelPathArc(props, value, filteredProps);
+
+      labelItem = (
+        <text {...filteredProps} key={props.key} className="recharts-radial-bar-label">
+          <defs><path id={id} d={path} /></defs>
+          <textPath xlinkHref={`#${id}`}>{value}</textPath>
+        </text>
+      );
+    }
+
+    return labelItem;
+  }
+
   renderLabels(sectors) {
     const { isAnimationActive } = this.props;
     if (isAnimationActive && !this.state.isAnimationFinished) { return null; }
 
     const { label } = this.props;
-    const isElement = React.isValidElement(label);
-    const formatter = isElement ? label.props.formatter : label.formatter;
-    const hasFormatter = _.isFunction(formatter);
 
     return sectors.map((entry, i) => {
-      const content = hasFormatter ? formatter(entry.value) : entry.value;
-      const id = _.uniqueId('recharts-defs-');
+      const props = {
+        fontSize: 10,
+        ...entry,
+        ...getPresentationAttributes(label),
+        index: i,
+        key: `label-${i}`,
+      };
 
-      const style = getPresentationAttributes(label) || { fontSize: 10, fill: '#000' };
-      const path = this.getLabelPathArc(entry, content, style);
-
-      return (
-        <text {...style} key={`label-${i}`} className="recharts-radial-bar-label">
-          <defs><path id={id} d={path} /></defs>
-          <textPath xlinkHref={`#${id}`}>{content}</textPath>
-        </text>
-      );
+      return this.renderLabelItem(label, props, entry.value);
     });
   }
+
 
   render() {
     const { data, className, background, label } = this.props;

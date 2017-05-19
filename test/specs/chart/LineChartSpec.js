@@ -190,14 +190,20 @@ describe('<LineChart />', () => {
 
   it('click on Curve should invoke onClick callback', () => {
     const onClick = sinon.spy();
+    const onMouseDown = sinon.spy();
+    const onMouseUp = sinon.spy();
     const wrapper = mount(
       <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-        <Line onClick={onClick} type="monotone" dataKey="uv" stroke="#ff7300" />
+        <Line onClick={onClick} onMouseDown={onMouseDown} onMouseUp={onMouseUp} type="monotone" dataKey="uv" stroke="#ff7300" />
       </LineChart>
     );
     const curve = wrapper.find(Curve);
     curve.simulate('click');
+    curve.simulate('mousedown');
+    curve.simulate('mouseup');
     expect(onClick.calledOnce).to.equal(true);
+    expect(onMouseDown.calledOnce).to.equal(true);
+    expect(onMouseUp.calledOnce).to.equal(true);
   });
 
   it('should show tooltip cursor on MouseEnter and MouseMove and hide on MouseLeave', () => {
@@ -259,7 +265,7 @@ describe('<LineChart />', () => {
     expect(lineDots.children().length).to.equal(6);
 
 		// verify one of the dots that we expect to move when the brush happens
-    expect(lineDots.childAt(2).props().payload.value).to.equal(data[2].uv);
+    expect(lineDots.childAt(2).props().payload).to.equal(data[2]);
     expect(lineDots.childAt(2).props().cx).to.equal(164);
     expect(lineDots.childAt(2).props().cy).to.equal(100);
 
@@ -272,12 +278,12 @@ describe('<LineChart />', () => {
     expect(newLineDots.children().length).to.equal(3);
 
 		// make sure the new first dot is the same as the old 2 dot, just in a new place
-    expect(newLineDots.childAt(0).props().payload.value).to.equal(data[2].uv);
+    expect(newLineDots.childAt(0).props().payload).to.equal(data[2]);
     expect(newLineDots.childAt(0).props().cx).to.equal(margin.left);
     expect(newLineDots.childAt(0).props().cy).to.equal(20);
 
 		// make sure the new last dot is the same as the old 4 dot, just in the last spot
-    expect(newLineDots.childAt(2).props().payload.value).to.equal(data[4].uv);
+    expect(newLineDots.childAt(2).props().payload).to.equal(data[4]);
     expect(newLineDots.childAt(2).props().cx).to.equal(width - margin.right);
     expect(newLineDots.childAt(2).props().cy).to.equal(43.4666666666667);
 
@@ -311,7 +317,6 @@ describe('<LineChart /> - Pure Rendering', () => {
       <XAxis />
       <YAxis />
       <Brush />
-      <Legend layout="vertical" />
     </LineChart>
 	);
 
@@ -319,14 +324,14 @@ describe('<LineChart /> - Pure Rendering', () => {
   it('should only render Line once when the mouse enters and moves', () => {
     const wrapper = mount(chart);
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
 
     wrapper.simulate('mouseEnter', { pageX: 30, pageY: 200 });
     wrapper.simulate('mouseMove', { pageX: 200, pageY: 200 });
     wrapper.simulate('mouseLeave');
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
   });
 
@@ -334,10 +339,66 @@ describe('<LineChart /> - Pure Rendering', () => {
   it('should only render Line once when the brush moves but doesn\'t change start/end indices', () => {
     const wrapper = mount(chart);
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
     wrapper.instance().handleBrushChange({ startIndex: 0, endIndex: data.length - 1 });
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+  });
+
+});
+
+describe('<LineChart /> - Pure Rendering with legend', () => {
+  const pureElements = [Line];
+
+  const spies = [];
+  // CartesianAxis is what is actually render for XAxis and YAxis
+  let axisSpy;
+
+  // spy on each pure element before each test, and restore the spy afterwards
+  beforeEach(() => {
+    pureElements.forEach((el, i) => (spies[i] = sinon.spy(el.prototype, 'render')));
+    axisSpy = sinon.spy(CartesianAxis.prototype, 'render');
+  });
+  afterEach(() => {
+    pureElements.forEach((el, i) => spies[i].restore());
+    axisSpy.restore();
+  });
+
+  const chart = (
+    <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+      <Line isAnimationActive={false} type="monotone" dataKey="uv" stroke="#ff7300" />
+      <Tooltip />
+      <XAxis />
+      <YAxis />
+      <Brush />
+      <Legend />
+    </LineChart>
+  );
+
+  // protect against the future where someone might mess up our clean rendering
+  it('should only render Line once when the mouse enters and moves', () => {
+    const wrapper = mount(chart);
+
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+
+    wrapper.simulate('mouseEnter', { pageX: 30, pageY: 200 });
+    wrapper.simulate('mouseMove', { pageX: 200, pageY: 200 });
+    wrapper.simulate('mouseLeave');
+
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+  });
+
+  // protect against the future where someone might mess up our clean rendering
+  it('should only render Line once when the brush moves but doesn\'t change start/end indices', () => {
+    const wrapper = mount(chart);
+
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+    wrapper.instance().handleBrushChange({ startIndex: 0, endIndex: data.length - 1 });
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
   });
 

@@ -1,7 +1,8 @@
 /**
  * @fileOverview Render sectors of a pie
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Animate from 'react-smooth';
 import classNames from 'classnames';
 import _ from 'lodash';
@@ -10,11 +11,11 @@ import Layer from '../container/Layer';
 import Sector from '../shape/Sector';
 import Curve from '../shape/Curve';
 import Text from '../component/Text';
-import { PRESENTATION_ATTRIBUTES, getPresentationAttributes,
-  filterEventsOfChild, isSsr } from '../util/ReactUtils';
+import { PRESENTATION_ATTRIBUTES, EVENT_ATTRIBUTES, LEGEND_TYPES,
+  getPresentationAttributes, filterEventsOfChild, isSsr } from '../util/ReactUtils';
 import { polarToCartesian } from '../util/PolarUtils';
 import AnimationDecorator from '../util/AnimationDecorator';
-import { isNumber } from '../util/DataUtils';
+import { isNumber, getValueByDataKey, uniqueId, mathSign } from '../util/DataUtils';
 
 @AnimationDecorator
 @pureRender
@@ -24,6 +25,7 @@ class Pie extends Component {
 
   static propTypes = {
     ...PRESENTATION_ATTRIBUTES,
+    ...EVENT_ATTRIBUTES,
     className: PropTypes.string,
     animationId: PropTypes.number,
     cx: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
@@ -33,15 +35,13 @@ class Pie extends Component {
     paddingAngle: PropTypes.number,
     innerRadius: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     outerRadius: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    cornerRadius: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     nameKey: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     valueKey: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     data: PropTypes.arrayOf(PropTypes.object),
     composedData: PropTypes.arrayOf(PropTypes.object),
     minAngle: PropTypes.number,
-    legendType: PropTypes.oneOf([
-      'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square', 'star',
-      'triangle', 'wye',
-    ]),
+    legendType: PropTypes.oneOf(LEGEND_TYPES),
     maxRadius: PropTypes.number,
 
     labelLine: PropTypes.oneOfType([
@@ -58,9 +58,6 @@ class Pie extends Component {
     ]),
     activeIndex: PropTypes.oneOfType([PropTypes.number, PropTypes.arrayOf(PropTypes.number)]),
 
-    onMouseEnter: PropTypes.func,
-    onMouseLeave: PropTypes.func,
-    onClick: PropTypes.func,
     isAnimationActive: PropTypes.bool,
     animationBegin: PropTypes.number,
     animationDuration: PropTypes.number,
@@ -102,66 +99,57 @@ class Pie extends Component {
     animationEasing: 'ease',
   };
 
-  constructor(props, ctx) {
-    super(props, ctx);
-
-    this.state = {
-      isAnimationFinished: false,
-    };
-
-    if (!this.id) {
-      this.id = `clipPath${Date.now()}`;
-    }
-  }
+  state = { isAnimationFinished: false };
 
   getDeltaAngle() {
     const { startAngle, endAngle } = this.props;
-    const sign = Math.sign(endAngle - startAngle);
+    const sign = mathSign(endAngle - startAngle);
     const deltaAngle = Math.min(Math.abs(endAngle - startAngle), 360);
 
     return sign * deltaAngle;
   }
 
   getSectors(data) {
-    const { cx, cy, innerRadius, outerRadius, startAngle, paddingAngle,
+    const { cx, cy, innerRadius, outerRadius, cornerRadius, startAngle, paddingAngle,
       minAngle, nameKey, valueKey } = this.props;
     const len = data.length;
     const deltaAngle = this.getDeltaAngle();
     const absDeltaAngle = Math.abs(deltaAngle);
     const totalPadingAngle = (absDeltaAngle >= 360 ? len : (len - 1)) * paddingAngle;
-    const sum = data.reduce((result, entry) => (result + entry[valueKey]), 0);
+    const sum = data.reduce((result, entry) => (result + getValueByDataKey(entry, valueKey, 0)), 0);
 
     let sectors = [];
     let prev;
 
     if (sum > 0) {
       sectors = data.map((entry, i) => {
-        const percent = entry[valueKey] / sum;
+        const percent = getValueByDataKey(entry, valueKey, 0) / sum;
+
         let tempStartAngle;
 
         if (i) {
           tempStartAngle = (deltaAngle < 0 ? prev.endAngle : prev.startAngle)
-            + Math.sign(deltaAngle) * paddingAngle;
+            + mathSign(deltaAngle) * paddingAngle;
         } else {
           tempStartAngle = startAngle;
         }
 
-        const tempEndAngle = tempStartAngle + Math.sign(deltaAngle) * (
+        const tempEndAngle = tempStartAngle + mathSign(deltaAngle) * (
           minAngle + percent * (absDeltaAngle - len * minAngle - totalPadingAngle)
         );
 
         prev = {
           percent,
+          cornerRadius,
           ...entry,
           cx,
           cy,
           innerRadius,
           outerRadius,
-          name: entry[nameKey],
-          value: entry[valueKey],
+          name: getValueByDataKey(entry, nameKey),
+          value: getValueByDataKey(entry, valueKey),
           startAngle: deltaAngle < 0 ? tempStartAngle : tempEndAngle,
           endAngle: deltaAngle < 0 ? tempEndAngle : tempStartAngle,
-          payload: entry,
           midAngle: (tempStartAngle + tempEndAngle) / 2,
         };
 
@@ -181,6 +169,9 @@ class Pie extends Component {
 
     return 'middle';
   }
+
+
+  id = uniqueId('recharts-pie-');
 
   isActiveIndex(i) {
     const { activeIndex } = this.props;
@@ -310,7 +301,7 @@ class Pie extends Component {
       return (
         <Layer key={`label-${i}`}>
           {labelLine && this.renderLabelLineItem(labelLine, lineProps)}
-          {this.renderLabelItem(label, labelProps, entry[valueKey])}
+          {this.renderLabelItem(label, labelProps, getValueByDataKey(entry, valueKey))}
         </Layer>
       );
     });

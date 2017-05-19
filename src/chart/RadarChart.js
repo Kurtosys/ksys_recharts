@@ -1,7 +1,8 @@
 /**
  * @fileOverview Radar Chart
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { scalePoint } from 'd3-scale';
 import { getNiceTickValues } from 'recharts-scale';
@@ -20,7 +21,7 @@ import { validateWidthHeight, findChildByType, findAllByType, filterSvgElements,
 import { getOffset, calculateChartCoordinate } from '../util/DOMUtils';
 import { polarToCartesian, getMaxRadius } from '../util/PolarUtils';
 import { getPercentValue, parseSpecifiedDomain, combineEventHandlers,
-  parseScale } from '../util/DataUtils';
+  parseScale, getValueByDataKey } from '../util/DataUtils';
 import pureRender from '../util/PureRender';
 import AnimationDecorator from '../util/AnimationDecorator';
 
@@ -126,7 +127,7 @@ class RadarChart extends Component {
     const radarItems = findAllByType(children, Radar);
     const dataKeys = radarItems.map(item => item.props.dataKey);
     const extent = data.reduce((prev, current) => {
-      const values = dataKeys.map(v => current[v] || 0);
+      const values = dataKeys.map(v => getValueByDataKey(current, v, 0));
       const currentMax = Math.max.apply(null, values);
       const currentMin = Math.min.apply(null, values);
 
@@ -195,7 +196,7 @@ class RadarChart extends Component {
     const len = data.length;
 
     return data.map((entry, i) => {
-      const value = entry[dataKey] || 0;
+      const value = getValueByDataKey(entry, dataKey, 0);
       const angle = this.getAngle(i, len, startAngle, clockWise);
       const radius = scale(value);
 
@@ -262,7 +263,7 @@ class RadarChart extends Component {
         ...getPresentationAttributes(el),
         animationId: this.props.animationId,
         points: this.getComposedData(el, scale, cx, cy),
-        key: `radar-${index}`,
+        key: el.key || `radar-${index}`,
         onMouseEnter: combineEventHandlers(
           this.handleMouseEnter, onMouseEnter, el.props.onMouseEnter),
         onMouseLeave: combineEventHandlers(
@@ -303,7 +304,7 @@ class RadarChart extends Component {
 
     return React.cloneElement(angleAxis, {
       ticks: data.map((v, i) => ({
-        value: dataKey ? v[dataKey] : i,
+        value: getValueByDataKey(v, dataKey, i),
         angle: this.getAngle(i, len, startAngle, clockWise),
       })),
       cx, cy, radius,
@@ -361,7 +362,7 @@ class RadarChart extends Component {
 
         return {
           dataKey,
-          type: legendType || 'square',
+          type: legendItem.props.iconType || legendType || 'square',
           color: child.props.stroke || child.props.fill,
           value: name || dataKey,
           payload: child.props,

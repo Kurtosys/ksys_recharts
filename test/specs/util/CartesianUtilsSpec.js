@@ -1,17 +1,21 @@
-import {expect} from 'chai';
+import { expect } from 'chai';
+import { scaleLinear, scaleBand } from 'd3-scale';
 import {
   calculateActiveTickIndex,
   calculateDomainOfTicks,
   getDomainOfStackGroups,
-  getDomainOfDataByKey
+  getDomainOfDataByKey,
+  offsetSign,
+  getTicksOfScale,
+  appendOffsetOfLegend,
 } from '../../../src/util/CartesianUtils';
 
 describe('calculateActiveTickIndex', () => {
   const ticks = [
-    {coordinate: 0, index: 0},
-    {coordinate: 12, index: 1},
-    {coordinate: 14, index: 2},
-    {coordinate: 15, index: 3},
+    { coordinate: 0, index: 0 },
+    { coordinate: 12, index: 1 },
+    { coordinate: 14, index: 2 },
+    { coordinate: 15, index: 3 },
   ];
   it('calculateActiveTickIndex(12, ticks) should return 1', () => {
     expect(calculateActiveTickIndex(12, ticks)).to.equal(1);
@@ -46,12 +50,11 @@ describe('getDomainOfStackGroups', () => {
   before(() => {
     stackData = {
       a: {
-        stackedData: [[[10, 14], [12, 16]], [[8, 14], [34, 11]]]
-      }
-      ,
+        stackedData: [[[10, 14], [12, 16]], [[8, 14], [34, 11]]],
+      },
       b: {
-        stackedData: [[[9, 13], [11, 15]], [[12, 14], [25, 22]]]
-      }
+        stackedData: [[[9, 13], [11, 15]], [[12, 14], [25, 22]]],
+      },
     };
   });
 
@@ -67,7 +70,7 @@ describe('getDomainOfStackGroups', () => {
 
   it('domain of all nulls should return [0, 0]', () => {
     stackData = {
-      a: {stackedData: [[[null, null]]]}
+      a: { stackedData: [[[null, null]]] },
     };
 
     expect(getDomainOfStackGroups(stackData, 0, 1)).to.deep.equal([0, 0]);
@@ -78,22 +81,22 @@ describe('getDomainOfDataByKey', () => {
   describe('with type === "number"', () => {
     const data = [
       {
-        "x": 1,
-        "actual": 35.4,
-        "benchmark": 35.4
+        x: 1,
+        actual: 35.4,
+        benchmark: 35.4,
       }, {
-        "x": 2,
-        "actual": 40
+        x: 2,
+        actual: 40,
       }, {
-        "x": 3,
-        "actual": 40.7
+        x: 3,
+        actual: 40.7,
       }, {
-        "x": 4,
-        "actual": 42.5
+        x: 4,
+        actual: 42.5,
       }, {
-        "x": 5,
-        "benchmark": 31.86
-      }
+        x: 5,
+        benchmark: 31.86,
+      },
     ];
 
     it('should calculate the correct domain for a simple linear set', () => {
@@ -106,3 +109,49 @@ describe('getDomainOfDataByKey', () => {
     });
   });
 });
+
+describe('offsetSign', () => {
+  describe('of data', () => {
+    const data = [
+      [[0, 1], [0, 2], [0, -5]],
+      [[0, -1], [0, 2], [0, -5]],
+    ];
+    const offsetData = offsetSign(data);
+
+    it('should change', () => {
+      expect(data).to.deep.equal([[[0, 1], [0, 2], [0, -5]], [[0, -1], [2, 4], [-5, -10]]]);
+    });
+  });
+});
+
+describe('getTicksOfScale', () => {
+  describe('of linear scale with auto domain', () => {
+    const scale = scaleLinear();
+    const opts = {
+      scale: 'linear',
+      type: 'number',
+      tickCount: 5,
+      originalDomain: ['auto', 'auto'],
+      allowDecimals: true,
+    };
+    const result = getTicksOfScale(scale, opts);
+
+    expect(result.niceTicks).to.deep.equal([0, 0.25, 0.5, 0.75, 1]);
+  });
+
+  describe('of linear scale with specified domain', () => {
+    const scale = scaleLinear();
+    const opts = {
+      scale: 'linear',
+      type: 'number',
+      tickCount: 5,
+      originalDomain: [0, 100],
+      allowDecimals: true,
+    };
+    const result = getTicksOfScale(scale, opts);
+
+    expect(result.niceTicks).to.deep.equal([0, 0.25, 0.5, 0.75, 1]);
+  });
+});
+
+

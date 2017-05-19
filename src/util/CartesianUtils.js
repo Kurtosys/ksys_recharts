@@ -1,18 +1,19 @@
-import { getNiceTickValues, getTickValues } from 'recharts-scale';
+import { getNiceTickValues, getTickValuesFixedDomain } from 'recharts-scale';
 import {
   stack as shapeStack, stackOrderNone, stackOffsetExpand,
   stackOffsetNone, stackOffsetSilhouette, stackOffsetWiggle,
 } from 'd3-shape';
 import _ from 'lodash';
 import { findAllByType, findChildByType } from './ReactUtils';
-import { getPercentValue, isNumber, isNumOrStr } from './DataUtils';
+import { getPercentValue, isNumber, isNumOrStr, getValueByDataKey,
+  uniqueId } from './DataUtils';
 import ReferenceDot from '../cartesian/ReferenceDot';
 import ReferenceLine from '../cartesian/ReferenceLine';
 import ReferenceArea from '../cartesian/ReferenceArea';
 import Legend from '../component/Legend';
 
 /* eslint no-param-reassign: 0 */
-const offsetSign = (series) => {
+export const offsetSign = (series) => {
   const n = series.length;
   if (n <= 0) { return; }
 
@@ -88,7 +89,7 @@ export const getStackedData = (data, stackItems, offsetType) => {
   const dataKeys = stackItems.map(item => item.props.dataKey);
   const stack = shapeStack()
                 .keys(dataKeys)
-                .value((d, key) => (+d[key] || 0))
+                .value((d, key) => +getValueByDataKey(d, key, 0))
                 .order(stackOrderNone)
                 .offset(STACK_OFFSET_MAP[offsetType]);
 
@@ -102,17 +103,17 @@ export const getStackGroupsByAxisId = (data, items, numericAxisId, cateAxisId, o
     const parentGroup = result[axisId] || { hasStack: false, stackGroups: {} };
 
     if (isNumOrStr(stackId)) {
-      const childGroup = parentGroup.stackGroups[stackId] || { items: [] };
+      const childGroup = parentGroup.stackGroups[stackId] || {
+        numericAxisId, cateAxisId, items: [],
+      };
 
       childGroup.items = [item].concat(childGroup.items);
 
-      if (childGroup.items.length >= 2) {
-        parentGroup.hasStack = true;
-      }
+      parentGroup.hasStack = true;
 
       parentGroup.stackGroups[stackId] = childGroup;
     } else {
-      parentGroup.stackGroups[_.uniqueId('_stackId_')] = {
+      parentGroup.stackGroups[uniqueId('_stackId_')] = {
         numericAxisId, cateAxisId, items: [item],
       };
     }
@@ -180,25 +181,34 @@ export const calculateDomainOfTicks = (ticks, type) => {
 
 /**
  * Get domain of data by key
- * @param  {Array} data   The data displayed in the chart
- * @param  {String} key  The unique key of a group of data
- * @param  {String} type The type of axis
+ * @param  {Array}   data      The data displayed in the chart
+ * @param  {String}  key       The unique key of a group of data
+ * @param  {String}  type      The type of axis
+ * @param  {Boolean} filterNil Whether or not filter nil values
  * @return {Array} Domain of data
  */
-export const getDomainOfDataByKey = (data, key, type) => {
+export const getDomainOfDataByKey = (data, key, type, filterNil) => {
+  const flattenData = data.reduce((result, entry) => {
+    const value = getValueByDataKey(entry, key);
+
+    if (_.isArray(value)) {
+      return [...result, ...value];
+    }
+
+    return [...result, value];
+  }, []);
+
   if (type === 'number') {
-    const domain = data
-      .map(entry => entry[key])
-      .filter(isNumber);
+    const domain = flattenData.filter(isNumber);
 
     return [Math.min.apply(null, domain), Math.max.apply(null, domain)];
   }
 
-  return data.map((entry) => {
-    const value = entry[key];
+  const validateData = filterNil ?
+    flattenData.filter(entry => !_.isNil(entry)) :
+    flattenData;
 
-    return isNumOrStr(value) ? value : '';
-  });
+  return validateData.map(entry => (isNumOrStr(entry) ? entry : ''));
 };
 
 const getDomainOfSingle = data => (
@@ -226,13 +236,16 @@ export const getDomainOfStackGroups = (stackGroups, startIndex, endIndex) => (
 
 /**
  * Get domain of data by the configuration of item element
- * @param  {Array} data   The data displayed in the chart
- * @param  {Array} items  The instances of item
- * @param  {String} type  The type of axis, number - Number Axis, category - Category Axis
+ * @param  {Array}   data      The data displayed in the chart
+ * @param  {Array}   items     The instances of item
+ * @param  {String}  type      The type of axis, number - Number Axis, category - Category Axis
+ * @param  {Boolean} filterNil Whether or not filter nil values
  * @return {Array}        Domain
  */
-export const getDomainOfItemsWithSameAxis = (data, items, type) => {
-  const domains = items.map(item => getDomainOfDataByKey(data, item.props.dataKey, type));
+export const getDomainOfItemsWithSameAxis = (data, items, type, filterNil) => {
+  const domains = items.map(item => getDomainOfDataByKey(
+      data, item.props.dataKey, type, filterNil
+  ));
 
   if (type === 'number') {
     // Calculate the domain of number axis
@@ -294,7 +307,8 @@ export const getTicksOfAxis = (axis, isGrid, isAll) => {
   if (!axis) return null;
   const scale = axis.scale;
   const { duplicateDomain, type } = axis;
-  const offset = (isGrid || isAll) && type === 'category' ? scale.bandwidth() / 2 : 0;
+  const offset = (isGrid || isAll) && type === 'category' && scale.bandwidth ?
+    scale.bandwidth() / 2 : 0;
 
   // The ticks setted by user should only affect the ticks adjacent to axis line
   if (isGrid && (axis.ticks || axis.niceTicks)) {
@@ -388,12 +402,12 @@ export const getLegendProps = (children, graphicItems, width) => {
 
       return {
         dataKey,
-        type: legendType || 'square',
+        type: legendItem.props.iconType || legendType || 'square',
         color: getMainColorOfGraphicItem(child),
         value: name || dataKey,
         payload: child.props,
       };
-    }, this);
+    });
 
   return {
     ...legendItem.props,
@@ -425,7 +439,7 @@ export const getTicksOfScale = (scale, opts) => {
     return { niceTicks: tickValues };
   } else if (tickCount && type === 'number') {
     const domain = scale.domain();
-    const tickValues = getTickValues(domain, tickCount, allowDecimals);
+    const tickValues = getTickValuesFixedDomain(domain, tickCount, allowDecimals);
 
     return { niceTicks: tickValues };
   }
@@ -452,7 +466,7 @@ export const getBarSizeList = ({ barSize: globalSize, stackGroups = {} }) => {
       const barItems = items.filter(item => item.type.displayName === 'Bar');
 
       if (barItems && barItems.length) {
-        const { dataKey, barSize: selfSize } = barItems[0].props;
+        const { barSize: selfSize } = barItems[0].props;
         const cateId = barItems[0].props[cateAxisId];
 
         if (!result[cateId]) {
@@ -460,8 +474,8 @@ export const getBarSizeList = ({ barSize: globalSize, stackGroups = {} }) => {
         }
 
         result[cateId].push({
-          dataKey,
-          stackList: barItems.slice(1).map(item => item.props.dataKey),
+          item: barItems[0],
+          stackList: barItems.slice(1),
           barSize: _.isNil(selfSize) ? globalSize : selfSize,
         });
       }
@@ -481,66 +495,89 @@ export const getBarSizeList = ({ barSize: globalSize, stackGroups = {} }) => {
 export const getBarPosition = ({ barGap, barCategoryGap, bandSize, sizeList = [], maxBarSize }) => {
   const len = sizeList.length;
   if (len < 1) return null;
+
+  let realBarGap = getPercentValue(barGap, bandSize, 0, true);
   let result;
 
   // whether or not is barSize setted by user
   if (sizeList[0].barSize === +sizeList[0].barSize) {
+    let useFull = false;
+    let fullBarSize = bandSize / len;
     let sum = sizeList.reduce((res, entry) => (res + entry.barSize || 0), 0);
-    sum += (len - 1) * barGap;
+    sum += (len - 1) * realBarGap;
+
+    if (sum >= bandSize) {
+      sum -= (len - 1) * realBarGap;
+      realBarGap = 0;
+    }
+    if (sum >= bandSize && fullBarSize > 0) {
+      useFull = true;
+      fullBarSize *= 0.9;
+      sum = len * fullBarSize;
+    }
+
     const offset = ((bandSize - sum) / 2) >> 0;
-    let prev = { offset: offset - barGap, size: 0 };
+    let prev = { offset: offset - realBarGap, size: 0 };
 
     result = sizeList.reduce((res, entry) => {
-      const newRes = {
-        ...res,
-        [entry.dataKey]: {
-          offset: prev.offset + prev.size + barGap,
-          size: entry.barSize,
+      const newRes = [...res, {
+        item: entry.item,
+        position: {
+          offset: prev.offset + prev.size + realBarGap,
+          size: useFull ? fullBarSize : entry.barSize,
         },
-      };
+      }];
 
-      prev = newRes[entry.dataKey];
+      prev = newRes[newRes.length - 1].position;
 
       if (entry.stackList && entry.stackList.length) {
-        entry.stackList.forEach((key) => {
-          newRes[key] = newRes[entry.dataKey];
+        entry.stackList.forEach((item) => {
+          newRes.push({ item, position: prev });
         });
       }
       return newRes;
-    }, {});
+    }, []);
   } else {
     const offset = getPercentValue(barCategoryGap, bandSize, 0, true);
-    const originalSize = (bandSize - 2 * offset - (len - 1) * barGap) / len >> 0;
+
+    if (bandSize - 2 * offset - (len - 1) * realBarGap <= 0) { realBarGap = 0; }
+
+    let originalSize = (bandSize - 2 * offset - (len - 1) * realBarGap) / len;
+    if (originalSize > 1) {
+      originalSize >>= 0;
+    }
     const size = (maxBarSize === +maxBarSize) ? Math.min(originalSize, maxBarSize) : originalSize;
 
     result = sizeList.reduce((res, entry, i) => {
-      const newRes = {
-        ...res,
-        [entry.dataKey]: {
-          offset: offset + (originalSize + barGap) * i + (originalSize - size) / 2,
+      const newRes = [...res, {
+        item: entry.item,
+        position: {
+          offset: offset + (originalSize + realBarGap) * i + (originalSize - size) / 2,
           size,
         },
-      };
+      }];
 
       if (entry.stackList && entry.stackList.length) {
-        entry.stackList.forEach((key) => {
-          newRes[key] = newRes[entry.dataKey];
+        entry.stackList.forEach((item) => {
+          newRes.push({ item, position: newRes[newRes.length - 1].position });
         });
       }
       return newRes;
-    }, {});
+    }, []);
   }
 
   return result;
 };
 
-export const appendOffsetOfLegend = (offset, items, props) => {
-  const { children, width, height } = props;
-  const legendProps = getLegendProps(children, items, width);
+export const appendOffsetOfLegend = (offset, items, props, legendBox) => {
+  const { children, width, height, margin } = props;
+  const legendWidth = width - (margin.left || 0) - (margin.right || 0);
+  const legendHeight = height - (margin.top || 0) - (margin.bottom || 0);
+  const legendProps = getLegendProps(children, items, legendWidth, legendHeight);
   let newOffset = offset;
 
   if (legendProps) {
-    const box = Legend.getLegendBBox(legendProps, width, height) || {};
+    const box = legendBox || {};
     const { align, verticalAlign, layout } = legendProps;
 
     if ((layout === 'vertical' || (layout === 'horizontal' && verticalAlign === 'center')) &&
@@ -556,3 +593,4 @@ export const appendOffsetOfLegend = (offset, items, props) => {
 
   return newOffset;
 };
+

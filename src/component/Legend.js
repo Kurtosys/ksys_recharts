@@ -1,14 +1,14 @@
 /**
  * @fileOverview Legend
  */
-import React, { Component, PropTypes } from 'react';
-import ReactDOMServer from 'react-dom/server';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import _ from 'lodash';
 import pureRender from '../util/PureRender';
 import DefaultLegendContent from './DefaultLegendContent';
-import { getStyleString } from '../util/DOMUtils';
-import { isSsr } from '../util/ReactUtils';
 import { isNumber } from '../util/DataUtils';
+import { LEGEND_TYPES } from '../util/ReactUtils';
+
 
 const renderContent = (content, props) => {
   if (React.isValidElement(content)) {
@@ -19,6 +19,9 @@ const renderContent = (content, props) => {
 
   return React.createElement(DefaultLegendContent, props);
 };
+
+const EPS = 1;
+const ICON_TYPES = LEGEND_TYPES.filter(type => type !== 'none');
 
 @pureRender
 class Legend extends Component {
@@ -32,6 +35,7 @@ class Legend extends Component {
     width: PropTypes.number,
     height: PropTypes.number,
     iconSize: PropTypes.number,
+    iconType: PropTypes.oneOf(ICON_TYPES),
     layout: PropTypes.oneOf(['horizontal', 'vertical']),
     align: PropTypes.oneOf(['center', 'left', 'right']),
     verticalAlign: PropTypes.oneOf(['top', 'bottom', 'middle']),
@@ -44,14 +48,13 @@ class Legend extends Component {
     payload: PropTypes.arrayOf(PropTypes.shape({
       value: PropTypes.any,
       id: PropTypes.any,
-      type: PropTypes.oneOf([
-        'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square',
-        'star', 'triangle', 'wye',
-      ]),
+      type: PropTypes.oneOf(LEGEND_TYPES),
     })),
+    formatter: PropTypes.func,
     onMouseEnter: PropTypes.func,
     onMouseLeave: PropTypes.func,
     onClick: PropTypes.func,
+    onBBoxUpdate: PropTypes.func,
   };
 
   static defaultProps = {
@@ -77,31 +80,24 @@ class Legend extends Component {
     return null;
   }
 
-  static getLegendBBox(props) {
-    if (!isSsr()) {
-      const { content, width, height, wrapperStyle } = props;
-      const contentHtml = ReactDOMServer.renderToStaticMarkup(renderContent(content, props));
-      const style = {
-        // solve the problem temporarily that the width and height will be affect by the global css
-        fontSize: 12,
-        position: 'absolute',
-        width: width || 'auto',
-        height: height || 'auto',
-        ...wrapperStyle,
-        top: -20000,
-        left: 0,
-        display: 'block',
-      };
-      const wrapper = document.createElement('div');
+  state = {
+    boxWidth: -1,
+    boxHeight: -1,
+  };
 
-      wrapper.setAttribute('style', getStyleString(style));
-      wrapper.innerHTML = contentHtml;
-      document.body.appendChild(wrapper);
-      const box = wrapper.getBoundingClientRect();
+  componentDidMount() {
+    this.updateBBox();
+  }
 
-      document.body.removeChild(wrapper);
+  componentDidUpdate() {
+    this.updateBBox();
+  }
 
-      return box;
+  getBBox() {
+    const { boxWidth, boxHeight } = this.state;
+
+    if (boxWidth >= 0 && boxHeight >= 0) {
+      return { width: boxWidth, height: boxHeight };
     }
 
     return null;
@@ -114,7 +110,7 @@ class Legend extends Component {
     if (!style || ((style.left === undefined || style.left === null) && (
       style.right === undefined || style.right === null))) {
       if (align === 'center' && layout === 'vertical') {
-        const box = Legend.getLegendBBox(this.props) || { width: 0 };
+        const box = this.getBBox() || { width: 0 };
         hPos = { left: ((chartWidth || 0) - box.width) / 2 };
       } else {
         hPos = align === 'right' ?
@@ -126,7 +122,7 @@ class Legend extends Component {
     if (!style || ((style.top === undefined || style.top === null) && (
       style.bottom === undefined || style.bottom === null))) {
       if (verticalAlign === 'middle') {
-        const box = Legend.getLegendBBox(this.props) || { height: 0 };
+        const box = this.getBBox() || { height: 0 };
         vPos = { top: ((chartHeight || 0) - box.height) / 2 };
       } else {
         vPos = verticalAlign === 'bottom' ?
@@ -136,6 +132,35 @@ class Legend extends Component {
     }
 
     return { ...hPos, ...vPos };
+  }
+
+  updateBBox() {
+    const { boxWidth, boxHeight } = this.state;
+    const { onBBoxUpdate } = this.props;
+
+    if (this.wrapperNode && this.wrapperNode.getBoundingClientRect) {
+      const box = this.wrapperNode.getBoundingClientRect();
+
+      if (Math.abs(box.width - boxWidth) > EPS || Math.abs(box.height - boxHeight) > EPS) {
+        this.setState({
+          boxWidth: box.width,
+          boxHeight: box.height,
+        }, () => {
+          if (onBBoxUpdate) {
+            onBBoxUpdate(box);
+          }
+        });
+      }
+    } else if (boxWidth !== -1 || boxHeight !== -1) {
+      this.setState({
+        boxWidth: -1,
+        boxHeight: -1,
+      }, () => {
+        if (onBBoxUpdate) {
+          onBBoxUpdate(null);
+        }
+      });
+    }
   }
 
   render() {
@@ -149,7 +174,11 @@ class Legend extends Component {
     };
 
     return (
-      <div className="recharts-legend-wrapper" style={outerStyle}>
+      <div
+        className="recharts-legend-wrapper"
+        style={outerStyle}
+        ref={(node) => { this.wrapperNode = node; }}
+      >
         {renderContent(content, this.props)}
       </div>
     );

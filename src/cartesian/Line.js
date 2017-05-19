@@ -1,7 +1,8 @@
 /**
  * @fileOverview Line
  */
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Animate from 'react-smooth';
 import classNames from 'classnames';
 import _ from 'lodash';
@@ -10,7 +11,10 @@ import Curve from '../shape/Curve';
 import Dot from '../shape/Dot';
 import Layer from '../container/Layer';
 import Text from '../component/Text';
-import { PRESENTATION_ATTRIBUTES, getPresentationAttributes, isSsr } from '../util/ReactUtils';
+import ErrorBar from './ErrorBar';
+import { getValueByDataKey, uniqueId } from '../util/DataUtils';
+import { PRESENTATION_ATTRIBUTES, EVENT_ATTRIBUTES, LEGEND_TYPES,
+  getPresentationAttributes, isSsr, findChildByType } from '../util/ReactUtils';
 
 const FACTOR = 1.0000001;
 
@@ -21,6 +25,7 @@ class Line extends Component {
 
   static propTypes = {
     ...PRESENTATION_ATTRIBUTES,
+    ...EVENT_ATTRIBUTES,
     className: PropTypes.string,
     type: PropTypes.oneOfType([PropTypes.oneOf([
       'basis', 'basisClosed', 'basisOpen', 'linear', 'linearClosed', 'natural',
@@ -28,13 +33,11 @@ class Line extends Component {
     ]), PropTypes.func]),
     unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     name: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    dataKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     yAxisId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     xAxisId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    legendType: PropTypes.oneOf([
-      'line', 'square', 'rect', 'circle', 'cross', 'diamond', 'square', 'star',
-      'triangle', 'wye',
-    ]),
+    yAxis: PropTypes.object,
+    xAxis: PropTypes.object,
+    legendType: PropTypes.oneOf(LEGEND_TYPES),
     layout: PropTypes.oneOf(['horizontal', 'vertical']),
     connectNulls: PropTypes.bool,
 
@@ -49,14 +52,15 @@ class Line extends Component {
       PropTypes.object, PropTypes.element, PropTypes.func, PropTypes.bool,
     ]),
 
+    top: PropTypes.number,
+    left: PropTypes.number,
+    width: PropTypes.number,
+    height: PropTypes.number,
     points: PropTypes.arrayOf(PropTypes.shape({
       x: PropTypes.number,
       y: PropTypes.number,
       value: PropTypes.value,
     })),
-    onMouseEnter: PropTypes.func,
-    onMouseLeave: PropTypes.func,
-    onClick: PropTypes.func,
     onAnimationStart: PropTypes.func,
     onAnimationEnd: PropTypes.func,
 
@@ -154,6 +158,12 @@ class Line extends Component {
       .join(', ');
   }
 
+  id = uniqueId('recharts-line-');
+
+  pathRef = (node) => {
+    this.animate = node;
+  };
+
   repeat(lines, count) {
     const linesUnit = lines.length % 2 !== 0 ? [...lines, 0] : lines;
     let result = [];
@@ -216,13 +226,38 @@ class Line extends Component {
         ...customLabelProps,
         index: i,
         key: `label-${i}`,
-        payload: entry,
       };
 
       return this.renderLabelItem(label, labelProps, entry.value);
     });
 
     return <Layer className="recharts-line-labels">{labels}</Layer>;
+  }
+
+  renderErrorBar() {
+    if (this.props.isAnimationActive && !this.state.isAnimationFinished) { return null; }
+
+    const { points, xAxis, yAxis, layout, children } = this.props;
+    const errorBarItem = findChildByType(children, ErrorBar);
+
+    if (!errorBarItem) { return null; }
+
+    function dataPointFormatter(dataPoint, dataKey) {
+      return {
+        x: dataPoint.x,
+        y: dataPoint.y,
+        value: dataPoint.value,
+        errorVal: getValueByDataKey(dataPoint.payload, dataKey),
+      };
+    }
+
+    return React.cloneElement(errorBarItem, {
+      data: points,
+      xAxis,
+      yAxis,
+      layout,
+      dataPointFormatter,
+    });
   }
 
   renderDotItem(option, props) {
@@ -233,7 +268,8 @@ class Line extends Component {
     } else if (_.isFunction(option)) {
       dotItem = option(props);
     } else {
-      dotItem = <Dot {...props} className="recharts-line-dot" />;
+      const className = classNames('recharts-line-dot', option.className);
+      dotItem = <Dot {...props} className={className} />;
     }
 
     return dotItem;
@@ -254,7 +290,8 @@ class Line extends Component {
         r: 3,
         ...lineProps,
         ...customDotProps,
-        cx: entry.x, cy: entry.y, index: i, payload: entry,
+        value: entry.value,
+        cx: entry.x, cy: entry.y, index: i, payload: entry.payload,
       };
 
       return this.renderDotItem(dot, dotProps);
@@ -263,7 +300,7 @@ class Line extends Component {
     return <Layer className="recharts-line-dots" key="dots">{dots}</Layer>;
   }
 
-  renderCurve() {
+  renderCurve(needClip) {
     const { points, strokeDasharray, isAnimationActive,
       animationBegin, animationDuration, animationEasing, onClick, onMouseEnter,
       onMouseLeave, ...other } = this.props;
@@ -278,10 +315,14 @@ class Line extends Component {
       onAnimationEnd: this.handleAnimationEnd,
       onAnimationStart: this.handleAnimationStart,
       shouldReAnimate: true,
-      pathRef: (node) => { this.animate = node; },
+      pathRef: this.pathRef,
     };
-    const curveProps = { ...other, className: 'recharts-line-curve', fill: 'none',
-      onClick, onMouseEnter, onMouseLeave, points };
+    const curveProps = { ...other,
+      fill: 'none',
+      className: 'recharts-line-curve',
+      clipPath: needClip ? `url(#clipPath-${this.id})` : null,
+      onClick, onMouseEnter, onMouseLeave, points,
+    };
 
     if (!isAnimationActive) {
       return <Curve {...curveProps} strokeDasharray={strokeDasharray} />;
@@ -294,18 +335,26 @@ class Line extends Component {
       return (
         <Animate
           {...animationProps}
-          from={{ length: 0 }}
-          to={{ length: totalLength }}
+          from={{ curveLen: 0 }}
+          to={{ curveLen: totalLength }}
         >
           {
-            ({ length }) => (
+            ({ curveLen }) => (
               <Curve
                 {...curveProps}
-                strokeDasharray={this.getStrokeDasharray(length, totalLength, lines)}
+                strokeDasharray={this.getStrokeDasharray(curveLen, totalLength, lines)}
               />
             )
           }
         </Animate>
+      );
+    } else if (strokeDasharray) {
+      return (
+        <Curve
+          {...curveProps}
+          pathRef={this.pathRef}
+          strokeDasharray={strokeDasharray}
+        />
       );
     }
 
@@ -322,18 +371,25 @@ class Line extends Component {
   }
 
   render() {
-    const { dot, points, label, className } = this.props;
+    const { dot, points, label, className, xAxis, yAxis, top, left, width, height } = this.props;
 
-    if (!points || !points.length) {
-      return null;
-    }
+    if (!points || !points.length) { return null; }
 
     const hasSinglePoint = points.length === 1;
     const layerClass = classNames('recharts-line', className);
+    const needClip = (xAxis && xAxis.allowDataOverflow) || (yAxis && yAxis.allowDataOverflow);
 
     return (
       <Layer className={layerClass}>
-        {!hasSinglePoint && this.renderCurve()}
+        {needClip ? (
+          <defs>
+            <clipPath id={`clipPath-${this.id}`}>
+              <rect x={left} y={top} width={width} height={height} />
+            </clipPath>
+          </defs>
+        ) : null}
+        {!hasSinglePoint && this.renderCurve(needClip)}
+        {this.renderErrorBar()}
         {(hasSinglePoint || dot) && this.renderDots()}
         {label && this.renderLabels()}
       </Layer>
