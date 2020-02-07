@@ -28,7 +28,7 @@ describe('<CartesianAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-cartesian-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
   it('Renders no ticks in simple CartesianAxis', () => {
@@ -49,6 +49,44 @@ describe('<CartesianAxis />', () => {
     expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(0);
   });
 
+  it('Renders ticks when interval="preserveStartEnd"', () => {
+    const wrapper = render(
+      <Surface width={500} height={500}>
+        <CartesianAxis
+          orientation="bottom"
+          y={100}
+          width={400}
+          height={50}
+          viewBox={{ x: 0, y: 0, width: 500, height: 500 }}
+          ticks={ticks}
+          label="test"
+          interval="preserveStartEnd"
+        />
+      </Surface>
+    );
+
+    expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(5);
+  });
+
+  it('Renders ticks when interval="preserveStart"', () => {
+    const wrapper = render(
+      <Surface width={500} height={500}>
+        <CartesianAxis
+          orientation="bottom"
+          y={100}
+          width={400}
+          height={50}
+          viewBox={{ x: 0, y: 0, width: 500, height: 500 }}
+          ticks={ticks}
+          label="test"
+          interval="preserveStart"
+        />
+      </Surface>
+    );
+
+    expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(5);
+  });
+
   it('Renders 5 ticks in a CartesianAxis which has orientation top', () => {
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -65,7 +103,7 @@ describe('<CartesianAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-cartesian-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
   it('Renders 5 ticks in a CartesianAxis which has orientation left', () => {
@@ -84,10 +122,10 @@ describe('<CartesianAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-cartesian-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
-  it('Renders 5 ticks in a CartesianAxis which has orientation left', () => {
+  it('Renders 5 ticks in a CartesianAxis which has orientation right', () => {
     const wrapper = render(
       <Surface width={500} height={500}>
         <CartesianAxis
@@ -103,11 +141,11 @@ describe('<CartesianAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-cartesian-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
 
-  it('Renders 5 ticks in a CartesianAxis which has orientation left', () => {
+  it('Renders label when label is a function', () => {
     const renderLabel = (props) => {
       const { x, y, width, height } = props;
 
@@ -131,7 +169,7 @@ describe('<CartesianAxis />', () => {
     expect(wrapper.find('.customized-label').length).to.equal(1);
   });
 
-  it('Renders 5 ticks in a CartesianAxis which has orientation right', () => {
+  it('Renders label when label is a react element', () => {
     const Label = (props) => {
       const { x, y, width, height } = props;
 
@@ -155,9 +193,9 @@ describe('<CartesianAxis />', () => {
   });
 
   it('Render customized ticks when tick is set to be a ReactElement', () => {
-    const CustomizedTick = ({x, y}) => {
-      return <text x={x} y={y} className="customized-tick">test</text>;
-    };
+    const CustomizedTick = ({ x, y }) =>
+      <text x={x} y={y} className="customized-tick">test</text>
+    ;
     const wrapper = render(
       <Surface width={500} height={500}>
         <CartesianAxis
@@ -167,7 +205,7 @@ describe('<CartesianAxis />', () => {
           height={50}
           viewBox={{ x: 0, y: 0, width: 500, height: 500 }}
           ticks={ticks}
-          tick={<CustomizedTick/>}
+          tick={<CustomizedTick />}
           interval={0}
         />
       </Surface>
@@ -176,10 +214,32 @@ describe('<CartesianAxis />', () => {
     expect(wrapper.find('.customized-tick').length).to.equal(ticks.length);
   });
 
+  it('Render customized ticks when ticks is an array of strings and interval is 0', () => {
+    const CustomizedTick = ({ x, y }) =>
+      <text x={x} y={y} className="customized-tick">test</text>
+    ;
+    const wrapper = render(
+      <Surface width={500} height={500}>
+        <CartesianAxis
+          orientation="bottom"
+          y={100}
+          width={400}
+          height={50}
+          viewBox={{ x: 0, y: 0, width: 500, height: 500 }}
+          ticks={['tick 1', 'tick 2', 'tick 3']}
+          tick={<CustomizedTick />}
+          interval={0}
+        />
+      </Surface>
+    );
+
+    expect(wrapper.find('.customized-tick').length).to.equal(3);
+  });
+
   it('Render customized ticks when tick is set to be a function', () => {
-    const renderCustomizedTick = ({x, y}) => {
-      return <text x={x} y={y} className="customized-tick">test</text>;
-    };
+    const renderCustomizedTick = ({ x, y }) =>
+      <text x={x} y={y} className="customized-tick">test</text>
+    ;
     const wrapper = render(
       <Surface width={500} height={500}>
         <CartesianAxis
@@ -196,6 +256,23 @@ describe('<CartesianAxis />', () => {
     );
 
     expect(wrapper.find('.customized-tick').length).to.equal(ticks.length);
+  });
+
+  it('Renders no ticks when tick is set to false', () => {
+    const wrapper = render(
+      <Surface width={500} height={500}>
+        <CartesianAxis
+          orientation="bottom"
+          y={100}
+          width={400}
+          height={50}
+          viewBox={{ x: 0, y: 0, width: 500, height: 500 }}
+          tick={false}
+        />
+      </Surface>
+    );
+
+    expect(wrapper.find('.recharts-cartesian-axis-tick').length).to.equal(0);
   });
 
 });

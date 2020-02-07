@@ -1,8 +1,9 @@
 import { expect } from 'chai';
 import { scaleLinear, scaleBand } from 'd3-scale';
-import { getPercentValue, validateCoordinateInRange,
-  getBandSizeOfAxis, getAnyElementOfObject,
-  parseSpecifiedDomain } from '../../../src/util/DataUtils';
+import { getPercentValue, getBandSizeOfAxis, getAnyElementOfObject,
+  calculateDomainOfTicks, parseSpecifiedDomain, hasDuplicate, parseScale,
+  getTicksOfScale, getValueByDataKey, mathSign, offsetSign
+} from '../../../src/util/DataUtils';
 
 describe('getPercentValue', () => {
   it('DataUtils.getPercentValue("25%", 1) should return 0.25 ', () => {
@@ -23,29 +24,6 @@ describe('getPercentValue', () => {
   });
 });
 
-describe('validateCoordinateInRange', () => {
-  it('DataUtils.validateCoordinateInRange(1) should return false ', () => {
-    expect(validateCoordinateInRange(1)).to.equal(false);
-  });
-});
-
-describe('getBandSizeOfAxis', () => {
-  it('DataUtils.getBandSizeOfAxis() should return 0 ', () => {
-    expect(getBandSizeOfAxis()).to.equal(0);
-  });
-
-  it('DataUtils.getBandSizeOfAxis({ type: "category", scale }) should return 0 ', () => {
-    const axis = { type: 'category', scale: scaleBand().domain([0, 1, 2, 3]).range([0, 100]) };
-    expect(getBandSizeOfAxis(axis)).to.equal(25);
-  });
-
-  it('DataUtils.getBandSizeOfAxis({ type: "number", scale }, ticks) should return 0 ', () => {
-    const axis = { type: 'number' };
-    const ticks = [{ coordinate: 13 }, { coordinate: 15 }, { coordinate: 20 }]
-    expect(getBandSizeOfAxis(axis, ticks)).to.equal(2);
-  });
-});
-
 describe('getAnyElementOfObject', () => {
   it('DataUtils.getAnyElementOfObject() should return null ', () => {
     expect(getAnyElementOfObject()).to.equal(null);
@@ -56,19 +34,27 @@ describe('getAnyElementOfObject', () => {
   });
 });
 
-describe('parseSpecifiedDomain', () => {
-  const domain = [20, 100];
-  it('DataUtils.parseSpecifiedDomain(1, domain) should return domain ', () => {
-    expect(parseSpecifiedDomain(1, domain)).to.equal(domain);
+describe('hasDuplicate', () => {
+  it('of an object should return false when input value is not an array', () => {
+    expect(hasDuplicate({})).to.be.false;
   });
 
-  it('DataUtils.parseSpecifiedDomain(["auto", "auto"], domain) should return null ', () => {
-    const result = parseSpecifiedDomain(['auto', 'auto'], domain);
-    expect(result).to.deep.equal(domain);
+  it('of [12, 12] should return true', () => {
+    expect(hasDuplicate([12, 12])).to.be.true;
+  });
+});
+
+describe('mathSign', () => {
+
+  it('(0)', () => {
+    expect(mathSign(0)).to.equal(0);
   });
 
-  it('DataUtils.parseSpecifiedDomain([-1, 120], domain) should return null ', () => {
-    const result = parseSpecifiedDomain([-1, 120], domain);
-    expect(result).to.deep.equal([-1, 120]);
+  it('(100)', () => {
+    expect(mathSign(100)).to.equal(1);
+  });
+
+  it('(-100)', () => {
+    expect(mathSign(-100)).to.equal(-1);
   });
 });

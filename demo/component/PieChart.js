@@ -1,6 +1,8 @@
-import React from 'react';
-import { PieChart, Pie, Legend, Cell, Tooltip, ResponsiveContainer, Sector } from 'recharts';
-import { scaleOrdinal, schemeCategory10 } from 'd3-scale';
+import React, { Component } from 'react';
+import { PieChart, Pie, Legend, Cell, Tooltip, ResponsiveContainer, Sector,
+  Label, LabelList } from 'recharts';
+import { scaleOrdinal } from 'd3-scale';
+import { schemeCategory10 } from 'd3-scale-chromatic';
 import { changeNumberOfData } from './utils';
 
 const colors = scaleOrdinal(schemeCategory10).range();
@@ -8,7 +10,7 @@ const colors = scaleOrdinal(schemeCategory10).range();
 const data01 = [
   { name: 'Group A', value: 400, v: 89 },
   { name: 'Group B', value: 300, v: 100 },
-  { name: 'Group C', value: null, v: 200 },
+  { name: 'Group C', value: 200, v: 200 },
   { name: 'Group D', value: 200, v: 20 },
   { name: 'Group E', value: 278, v: 40 },
   { name: 'Group F', value: 189, v: 60 },
@@ -43,7 +45,7 @@ const data03 = [
   { name: 'F3', value: 51 },
 ];
 
-const initilaState = { data01, data02, data03 };
+const initialState = { data01, data02, data03 };
 
 const renderLabelContent = (props) => {
   const { value, percent, x, y, midAngle } = props;
@@ -102,23 +104,38 @@ const renderActiveShape = (props) => {
   );
 };
 
-export default React.createClass({
-  onPieEnter(data, index) {
+export default class Demo extends Component {
+
+  static displayName = 'PieChartDemo';
+
+  onPieEnter = (data, index, e) => {
     this.setState({
       activeIndex: index,
     });
-  },
+  };
 
-  getInitialState() {
-    return {
-      ...initilaState,
-      activeIndex: 0,
-    };
-  },
+  state = {
+    ...initialState,
+    activeIndex: 0,
+    animation: false,
+  };
 
-  handleChangeData() {
-    this.setState(() => _.mapValues(initilaState, changeNumberOfData));
-  },
+  handleChangeData = () => {
+    this.setState(() => _.mapValues(initialState, changeNumberOfData));
+  };
+
+  handleChangeAnimation = () => {
+    this.setState({
+      animation: !this.state.animation,
+    });
+  };
+
+  handlePieChartEnter = (a, b, c) => {
+    console.log(a, b, c);
+  };
+
+  handleEnter = (e, activeIndex) => this.setState({ activeIndex });
+  handleLeave = () => this.setState({ activeIndex: -1 });
 
   render () {
     const { data01, data02, data03 } = this.state;
@@ -135,22 +152,48 @@ export default React.createClass({
         <br/>
         <p>Simple PieChart</p>
         <div className="pie-chart-wrapper">
+          <button onClick={this.handleChangeAnimation}>change animation</button>
           <PieChart width={800} height={400}>
-            <Legend />
-            <Pie cx={200} cy={200} startAngle={180} endAngle={0} outerRadius={80} label>
+            <Legend paylodUniqBy />
+            <Pie
+              data={data01}
+              dataKey="value"
+              cx={200}
+              cy={200}
+              startAngle={180}
+              endAngle={0}
+              outerRadius={80}
+              label
+            >
               {
                 data01.map((entry, index) => (
-                  <Cell key={`slice-${index}`} name={entry.name} value={entry.value} fill={colors[index % 10]}/>
+                  <Cell key={`slice-${index}`} fill={colors[index % 10]}/>
                 ))
               }
+              <Label value="test" position="outside" />
+              <LabelList position="outside" />
             </Pie>
-            <Pie cx={600} cy={200} startAngle={180} endAngle={-180} innerRadius={60} outerRadius={80}
-              label={renderLabelContent}>
+            <Pie
+              data={data02}
+              dataKey="value"
+              cx={600}
+              cy={200}
+              startAngle={180}
+              endAngle={-180}
+              innerRadius={60}
+              outerRadius={80}
+              label={renderLabelContent}
+              paddingAngle={5}
+              isAnimationActive={this.state.animation}
+            >
               {
                 data02.map((entry, index) => (
-                  <Cell key={`slice-${index}`} name={entry.name} value={entry.value} fill={colors[index % 10]}/>
+                  <Cell key={`slice-${index}`} fill={colors[index % 10]}/>
                 ))
               }
+              <Label width={50} position="center">
+                测试换行 测试杭欢
+              </Label>
             </Pie>
           </PieChart>
         </div>
@@ -160,8 +203,8 @@ export default React.createClass({
         <div className="pie-chart-wrapper">
           <PieChart width={400} height={400}>
             <Legend verticalAlign="top"/>
-            <Pie data={data01} cx={200} cy={200} innerRadius={50} outerRadius={80}/>
-            <Pie data={data03} cx={200} cy={200} innerRadius={80} outerRadius={100}/>
+            <Pie data={data01} dataKey="value" cx={200} cy={200} innerRadius={50} outerRadius={80}/>
+            <Pie data={data03} dataKey="value" cx={200} cy={200} innerRadius={80} outerRadius={100}/>
           </PieChart>
         </div>
 
@@ -169,10 +212,9 @@ export default React.createClass({
         <div className="pie-chart-wrapper" style={{ width: '50%', height: '100%', backgroundColor: '#f5f5f5' }}>
           <ResponsiveContainer>
             <PieChart>
+              <Pie data={data01} nameKey="name" dataKey="value" innerRadius="25%" outerRadius="40%"/>
+              <Pie data={data01} dataKey="v" innerRadius="45%" outerRadius="80%"/>
               <Tooltip />
-              <Pie data={data01} innerRadius="25%" outerRadius="40%"/>
-              <Pie data={data01} nameKey="name" valueKey="v" innerRadius="45%" outerRadius="80%"/>
-              <Tooltip/>
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -180,19 +222,51 @@ export default React.createClass({
         <p>PieChart wrapped by ResponsiveContainer</p>
         <div className="pie-chart-wrapper" style={{ width: '50%', height: '100%', backgroundColor: '#f5f5f5' }}>
           <ResponsiveContainer>
-            <PieChart onClick={this.onPieEnter}>
+            <PieChart onMouseEnter={this.handlePieChartEnter}>
               <Pie
                 data={data01}
+                dataKey="value"
                 innerRadius="25%"
                 outerRadius="40%"
                 activeIndex={this.state.activeIndex}
                 activeShape={renderActiveShape}
+                onMouseEnter={this.onPieEnter}
+                isAnimationActive={false}
               >
                 {
                   data01.map((entry, index) => (
-                    <Cell key={`slice-${index}`} name={entry.name} value={entry.value} fill={colors[index % 10]}/>
+                    <Cell key={`slice-${index}`} fill={colors[index % 10]}/>
                   ))
                 }
+                <Label value="test" />
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <p>PieChart has bug about tooltip</p>
+        <div className="pie-chart-wrapper" style={{ width: '50%', height: '100%', backgroundColor: '#f5f5f5' }}>
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={data01}
+                dataKey="value"
+                innerRadius="25%"
+                outerRadius="40%"
+                onMouseEnter={this.handleEnter}
+                onMouseLeave={this.handleLeave}
+              >
+                <Tooltip />
+                {
+                  data01.map((entry, index) => (
+                    <Cell
+                      key={`slice-${index}`}
+                      fill={colors[index % 10]}
+                      fillOpacity={this.state.activeIndex === index ? 1 : 0.25}
+                    />
+                  ))
+                }
+                <Label value="test" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
@@ -200,5 +274,5 @@ export default React.createClass({
       </div>
     );
   }
-});
+}
 

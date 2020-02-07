@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { Surface, Radar, RadarChart, PolarGrid, Legend, Tooltip,
-         PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+  PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
+  LabelList, Label } from 'recharts';
 import DemoRadarItem from './DemoRadarItem';
 import { changeNumberOfData } from './utils';
 
@@ -13,18 +14,21 @@ const data = [
   { subject: 'History', A: 65, B: 85 },
 ];
 
-const initilaState = { data };
+const initialState = { data };
 
-class RadarChartDemo extends React.Component {
+export default class Demo extends Component {
+
+  static displayName = 'RadarChartDemo';
+
   constructor() {
     super();
 
-    this.state = initilaState;
+    this.state = initialState;
     this.handleChangeData = this.handleChangeData.bind(this);
   }
 
   handleChangeData() {
-    this.setState(() => _.mapValues(initilaState, changeNumberOfData));
+    this.setState(() => _.mapValues(initialState, changeNumberOfData));
   }
 
   handleMouseEnter(props) {
@@ -46,9 +50,9 @@ class RadarChartDemo extends React.Component {
         <br/>
         <p>A simple RadarChart</p>
         <RadarChart cx={300} cy={250} outerRadius={150} width={600} height={500} data={data}>
-          <Radar name="Mike" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
           <PolarGrid />
           <PolarAngleAxis dataKey="subject" />
+          <Radar name="Mike" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
         </RadarChart>
 
         <p>A RadarChart of two students' score</p>
@@ -60,22 +64,24 @@ class RadarChartDemo extends React.Component {
           height={500}
           data={data}
         >
-          <Radar name="Mike"
+          <PolarGrid />
+          <Tooltip />
+          <Radar
+            name="Mike"
             dataKey="A"
             stroke="#8884d8"
             fill="#8884d8"
             fillOpacity={0.6}
             onMouseEnter={this.handleMouseEnter}
           />
-          <Radar name="Lily"
+          <Radar
+            name="Lily"
             dataKey="B"
             stroke="#82ca9d"
             fill="#82ca9d"
             fillOpacity={0.6}
             animationBegin={180}
           />
-          <Tooltip />
-          <PolarGrid />
           <Legend />
           <PolarRadiusAxis domain={[0, 150]} label="score"/>
         </RadarChart>
@@ -84,11 +90,13 @@ class RadarChartDemo extends React.Component {
         <div style={{ width: '100%', height: '100%' }}>
           <ResponsiveContainer>
             <RadarChart data={data}>
-              <Radar name="Mike" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
               <PolarGrid />
               <PolarAngleAxis dataKey="subject" />
               <PolarRadiusAxis />
               <Tooltip />
+              <Radar name="Mike" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6}>
+                <LabelList />
+              </Radar>
             </RadarChart>
           </ResponsiveContainer>
         </div>
@@ -96,6 +104,3 @@ class RadarChartDemo extends React.Component {
     );
   }
 }
-
-
-export default RadarChartDemo;

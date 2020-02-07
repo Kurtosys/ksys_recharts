@@ -26,7 +26,7 @@ describe('<LineChart />', () => {
     expect(wrapper.find('.recharts-line .recharts-line-curve').length).to.equal(1);
   });
 
-  it('Render 1 line in simple LineChart', () => {
+  it('Render 1 line when LineChart has <XAxis /> and <YAxis />', () => {
     const wrapper = render(
       <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
         <XAxis />
@@ -35,6 +35,66 @@ describe('<LineChart />', () => {
       </LineChart>
     );
     expect(wrapper.find('.recharts-line .recharts-line-curve').length).to.equal(1);
+  });
+
+  it('Render smooth curve when type of Line is monotone', () => {
+    const wrapper = render(
+      <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+        <XAxis />
+        <YAxis type="category" />
+        <Line type="monotone" dataKey="uv" stroke="#ff7300" />
+      </LineChart>
+    );
+    const curves = wrapper.find('.recharts-line .recharts-line-curve');
+    expect(curves.length).to.equal(1);
+    const path = curves[0].attribs.d;
+    expect(path.indexOf('C')).to.not.equal(-1);
+  });
+
+  it('Render two paths when connectNulls is false', () => {
+    const breakData = [
+      { name: 'Page A', uv: 400, pv: 2400, amt: 2400 },
+      { name: 'Page B', uv: 300, pv: 4567, amt: 2400 },
+      { name: 'Page C', uv: 300, pv: 1398, amt: 2400 },
+      { name: 'Page D', uv: null, pv: 9800, amt: 2400 },
+      { name: 'Page E', uv: 278, pv: 3908, amt: 2400 },
+      { name: 'Page F', uv: 189, pv: 4800, amt: 2400 },
+    ];
+
+    const wrapper = render(
+      <LineChart width={400} height={400} data={breakData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+        <XAxis />
+        <YAxis type="category" />
+        <Line type="monotone" connectNulls={false} dataKey="uv" stroke="#ff7300" />
+      </LineChart>
+    );
+    const curves = wrapper.find('.recharts-line .recharts-line-curve');
+    expect(curves.length).to.equal(1);
+    const path = curves[0].attribs.d;
+    expect(path.length - path.split('M').join('').length).to.equal(2);
+  });
+
+   it('Render one paths when connectNulls is true', () => {
+    const breakData = [
+      { name: 'Page A', uv: 400, pv: 2400, amt: 2400 },
+      { name: 'Page B', uv: 300, pv: 4567, amt: 2400 },
+      { name: 'Page C', uv: 300, pv: 1398, amt: 2400 },
+      { name: 'Page D', uv: null, pv: 9800, amt: 2400 },
+      { name: 'Page E', uv: 278, pv: 3908, amt: 2400 },
+      { name: 'Page F', uv: 189, pv: 4800, amt: 2400 },
+    ];
+
+    const wrapper = render(
+      <LineChart width={400} height={400} data={breakData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+        <XAxis />
+        <YAxis type="category" />
+        <Line type="monotone" connectNulls dataKey="uv" stroke="#ff7300" />
+      </LineChart>
+    );
+    const curves = wrapper.find('.recharts-line .recharts-line-curve');
+    expect(curves.length).to.equal(1);
+    const path = curves[0].attribs.d;
+    expect(path.length - path.split('M').join('').length).to.equal(1);
   });
 
   it('Renders customized active dot when activeDot is set to be a ReactElement', () => {
@@ -109,7 +169,7 @@ describe('<LineChart />', () => {
         <Line isAnimationActive={false} label type="monotone" dataKey="uv" stroke="#ff7300" />
       </LineChart>
     );
-    expect(wrapper.find('.recharts-line-label').length).to.equal(6);
+    expect(wrapper.find('.recharts-label').length).to.equal(6);
   });
 
   it('Renders 6 labels when label is setted to be a function', () => {
@@ -179,6 +239,40 @@ describe('<LineChart />', () => {
     expect(wrapper.find('.customized-dot').length).to.equal(6);
   });
 
+  it("Renders 3 lines before and after a parents state change", () => {
+    class LineChartContainer extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = {
+            data : [
+              {name: 'A', time: 6},
+              {name: 'B', time: 2},
+              {name: 'C', time: 4}
+            ],
+            dataKeys : ["time"],
+            additionalStateItem : false
+          };
+        }
+        render() {
+            return (
+              <LineChart width={600} height={300} data={this.state.data}
+                margin={{top: 5, right: 30, left: 20, bottom: 5}}>
+                {this.state.dataKeys.map((key,i) =>
+                    <Line dataKey={key} key={i} type="monotone"/>
+                )}
+              </LineChart>
+            );
+        }
+    };
+
+    const wrapper = mount(<LineChartContainer />);
+    expect(wrapper.find(LineChart).children().props().children).to.have.lengthOf(3);
+
+    wrapper.setProps({ additionalStateItem: true });
+
+    expect(wrapper.find(LineChart).children().props().children).to.have.lengthOf(3);
+  });
+
   it('click on Curve should invoke onClick callback', () => {
     const wrapper = mount(
       <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -189,15 +283,28 @@ describe('<LineChart />', () => {
   });
 
   it('click on Curve should invoke onClick callback', () => {
-    const onClick = sinon.spy();
+    let propsOfCallback;
+    let eventOfCallback;
+    const onClick = sinon.spy((props, event) => {
+      propsOfCallback = props;
+      eventOfCallback = event;
+    });
+    const onMouseDown = sinon.spy();
+    const onMouseUp = sinon.spy();
     const wrapper = mount(
       <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-        <Line onClick={onClick} type="monotone" dataKey="uv" stroke="#ff7300" />
+        <Line onClick={onClick} onMouseDown={onMouseDown} onMouseUp={onMouseUp} type="monotone" dataKey="uv" stroke="#ff7300" />
       </LineChart>
     );
     const curve = wrapper.find(Curve);
     curve.simulate('click');
+    curve.simulate('mousedown');
+    curve.simulate('mouseup');
     expect(onClick.calledOnce).to.equal(true);
+    expect(onMouseDown.calledOnce).to.equal(true);
+    expect(onMouseUp.calledOnce).to.equal(true);
+    expect(propsOfCallback).to.include.all.keys(['className', 'points', 'connectNulls', 'type']);
+    expect(eventOfCallback).to.include.all.keys(['currentTarget', 'target']);
   });
 
   it('should show tooltip cursor on MouseEnter and MouseMove and hide on MouseLeave', () => {
@@ -212,33 +319,34 @@ describe('<LineChart />', () => {
       </LineChart>
     );
 
-		// simulate entering just past Page A to test snapping of the cursor line
-    expect(wrapper.find('.recharts-tooltip-cursor').length).to.equal(0);
-    wrapper.simulate('mouseEnter', { pageX: margin.left + 10, pageY: height / 2 });
+    const chartWidth = width - margin.left - margin.right;
+    const dotSpacing = chartWidth / (data.length - 1);
 
-    let tooltipCursors = wrapper.find('.recharts-tooltip-cursor');
+    // simulate entering just past Page A to test snapping of the cursor line
+    expect(wrapper.find('.recharts-tooltip-cursor').hostNodes().length).to.equal(0);
+    wrapper.simulate('mouseEnter', { pageX: margin.left + 0.1 * dotSpacing, pageY: height / 2 });
+
+    let tooltipCursors = wrapper.find('.recharts-tooltip-cursor').hostNodes();
     expect(tooltipCursors.length).to.equal(1);
 
-		// make sure tooltip is in the right spot.
+    // make sure tooltip is in the right spot.
     const chartBottom = height - margin.top - 2 * margin.bottom;
     let expectedX = margin.left;
     expect(tooltipCursors.at(0).props().d).to.equal(`M${expectedX},${margin.top}L${expectedX},${chartBottom}`);
 
-		// simulate moving 10 pixels past the PageC Dot
-    const chartWidth = width - margin.left - margin.right;
-    const dotSpacing = chartWidth / (data.length - 1);
+    // simulate moving 10 pixels past the PageC Dot
     expectedX = margin.left + dotSpacing * 2;
-    wrapper.simulate('mouseMove', { pageX: expectedX + 10, pageY: height / 2 });
+    wrapper.simulate('mouseMove', { pageX: expectedX + 0.1 * dotSpacing, pageY: height / 2 });
 
-    tooltipCursors = wrapper.find('.recharts-tooltip-cursor');
+    tooltipCursors = wrapper.find('.recharts-tooltip-cursor').hostNodes();
     expect(tooltipCursors.length).to.equal(1);
 
 
     expect(tooltipCursors.at(0).props().d).to.equal(`M${expectedX},${margin.top}L${expectedX},${chartBottom}`);
 
-		// simulate leaving the area
+    // simulate leaving the area
     wrapper.simulate('mouseLeave');
-    expect(wrapper.find('.recharts-tooltip-cursor').length).to.equal(0);
+    expect(wrapper.find('.recharts-tooltip-cursor').hostNodes.length).to.equal(0);
 
   });
 
@@ -251,39 +359,42 @@ describe('<LineChart />', () => {
         <Line isAnimationActive={false} type="monotone" dataKey="uv" stroke="#ff7300" />
         <Tooltip />
         <Brush />
-      </LineChart>
+      </LineChart>,
     );
 
-    const lineDots = wrapper.find('.recharts-line-dots');
+    const lineDots = wrapper.find('.recharts-line .recharts-line-dots').hostNodes();
     expect(lineDots.length).to.equal(1);
     expect(lineDots.children().length).to.equal(6);
 
+    let dataIndex = 2;
+
 		// verify one of the dots that we expect to move when the brush happens
-    expect(lineDots.childAt(2).props().payload.value).to.equal(data[2].uv);
-    expect(lineDots.childAt(2).props().cx).to.equal(164);
-    expect(lineDots.childAt(2).props().cy).to.equal(100);
+    expect(lineDots.childAt(dataIndex).props().payload).to.equal(data[dataIndex]);
+    expect(lineDots.childAt(dataIndex).props().cx).to.equal(164);
+    expect(lineDots.childAt(dataIndex).props().cy).to.equal(100);
 
 		// simulate a brush to only include the data elements at indices 2-4
-    wrapper.instance().handleBrushChange({ startIndex: 2, endIndex: 4 });
+    wrapper.instance().handleBrushChange({ startIndex: 2, endIndex: 5 });
 
 		// we should only have three dots now
-    const newLineDots = wrapper.find('.recharts-line-dots');
+    const newLineDots = wrapper.find('.recharts-line-dots').hostNodes();
     expect(newLineDots.length).to.equal(1);
-    expect(newLineDots.children().length).to.equal(3);
+    expect(newLineDots.children().length).to.equal(data.length);
+
+    dataIndex = 0;
 
 		// make sure the new first dot is the same as the old 2 dot, just in a new place
-    expect(newLineDots.childAt(0).props().payload.value).to.equal(data[2].uv);
-    expect(newLineDots.childAt(0).props().cx).to.equal(margin.left);
-    expect(newLineDots.childAt(0).props().cy).to.equal(20);
+    expect(newLineDots.childAt(dataIndex).props().payload).to.equal(data[dataIndex]);
+    expect(newLineDots.childAt(dataIndex).props().cx).to.equal(margin.left);
+    expect(newLineDots.childAt(dataIndex).props().cy).to.equal(20);
 
-		// make sure the new last dot is the same as the old 4 dot, just in the last spot
-    expect(newLineDots.childAt(2).props().payload.value).to.equal(data[4].uv);
-    expect(newLineDots.childAt(2).props().cx).to.equal(width - margin.right);
-    expect(newLineDots.childAt(2).props().cy).to.equal(43.4666666666667);
+    dataIndex = 2;
 
+    // verify one of the dots that we expect to move when the brush happens
+    expect(newLineDots.childAt(dataIndex).props().payload).to.equal(data[dataIndex]);
+    expect(newLineDots.childAt(dataIndex).props().cx).to.equal(164);
+    expect(newLineDots.childAt(dataIndex).props().cy).to.equal(100);
   });
-
-
 });
 
 
@@ -311,7 +422,6 @@ describe('<LineChart /> - Pure Rendering', () => {
       <XAxis />
       <YAxis />
       <Brush />
-      <Legend layout="vertical" />
     </LineChart>
 	);
 
@@ -319,14 +429,14 @@ describe('<LineChart /> - Pure Rendering', () => {
   it('should only render Line once when the mouse enters and moves', () => {
     const wrapper = mount(chart);
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
 
     wrapper.simulate('mouseEnter', { pageX: 30, pageY: 200 });
     wrapper.simulate('mouseMove', { pageX: 200, pageY: 200 });
     wrapper.simulate('mouseLeave');
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
   });
 
@@ -334,10 +444,66 @@ describe('<LineChart /> - Pure Rendering', () => {
   it('should only render Line once when the brush moves but doesn\'t change start/end indices', () => {
     const wrapper = mount(chart);
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
     wrapper.instance().handleBrushChange({ startIndex: 0, endIndex: data.length - 1 });
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+  });
+
+});
+
+describe('<LineChart /> - Pure Rendering with legend', () => {
+  const pureElements = [Line];
+
+  const spies = [];
+  // CartesianAxis is what is actually render for XAxis and YAxis
+  let axisSpy;
+
+  // spy on each pure element before each test, and restore the spy afterwards
+  beforeEach(() => {
+    pureElements.forEach((el, i) => (spies[i] = sinon.spy(el.prototype, 'render')));
+    axisSpy = sinon.spy(CartesianAxis.prototype, 'render');
+  });
+  afterEach(() => {
+    pureElements.forEach((el, i) => spies[i].restore());
+    axisSpy.restore();
+  });
+
+  const chart = (
+    <LineChart width={400} height={400} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+      <Line isAnimationActive={false} type="monotone" dataKey="uv" stroke="#ff7300" />
+      <Tooltip />
+      <XAxis />
+      <YAxis />
+      <Brush />
+      <Legend />
+    </LineChart>
+  );
+
+  // protect against the future where someone might mess up our clean rendering
+  it('should only render Line once when the mouse enters and moves', () => {
+    const wrapper = mount(chart);
+
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+
+    wrapper.simulate('mouseEnter', { pageX: 30, pageY: 200 });
+    wrapper.simulate('mouseMove', { pageX: 200, pageY: 200 });
+    wrapper.simulate('mouseLeave');
+
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+  });
+
+  // protect against the future where someone might mess up our clean rendering
+  it('should only render Line once when the brush moves but doesn\'t change start/end indices', () => {
+    const wrapper = mount(chart);
+
+    spies.forEach(el => expect(el.callCount).to.equal(1));
+    expect(axisSpy.callCount).to.equal(2);
+    wrapper.instance().handleBrushChange({ startIndex: 0, endIndex: data.length - 1 });
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
   });
 

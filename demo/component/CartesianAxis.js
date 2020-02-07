@@ -1,14 +1,17 @@
-import React from 'react';
-import { Surface, CartesianAxis } from 'recharts';
+import React, { Component } from 'react';
+import { Surface, CartesianAxis, Label } from 'recharts';
 
-export default React.createClass({
+export default class Demo extends Component {
+
+  static displayName = 'CartesianAxisDemo';
+
   render () {
     let ticks = [
-      { value: 10, coord: 50 },
-      { value: 1000, coord: 100 },
-      { value: 20, coord: 150 },
-      { value: 40, coord: 200 },
-      { value: 90, coord: 250 }
+      { value: 10, coordinate: 50 },
+      { value: 1000, coordinate: 100 },
+      { value: 20, coordinate: 150 },
+      { value: 40, coordinate: 200 },
+      { value: 90, coordinate: 250 }
     ];
 
     return (
@@ -20,7 +23,10 @@ export default React.createClass({
           height={50}
           viewBox={{ x: 0, y: 0, width: 500, height: 500 }}
           ticks={ticks}
-        />
+          label="test"
+        >
+          <Label>测试</Label>
+        </CartesianAxis>
         <CartesianAxis
           orientation="top"
           y={200}
@@ -48,6 +54,6 @@ export default React.createClass({
       </Surface>
     );
   }
-});
+}
 
 

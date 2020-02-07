@@ -1,15 +1,22 @@
-import React from 'react';
-import { Surface, PolarRadiusAxis } from 'recharts';
+import React, { Component } from 'react';
+import { Surface, PolarRadiusAxis, Label } from 'recharts';
 
-export default React.createClass({
+export default class Demo extends Component {
+
+  static displayName = 'PolarRadiusAxisDemo';
+
+  handleActive = (data, index, e) => {
+    console.log(data, index);
+  };
+
   render () {
     const ticks = [
-      { value: '100', radius: 50 },
-      { value: '200', radius: 100 },
-      { value: '300', radius: 150 },
-      { value: '400', radius: 200 },
-      { value: '500', radius: 250 },
-      { value: '600', radius: 300 },
+      { value: '100', coordinate: 50 },
+      { value: '200', coordinate: 100 },
+      { value: '300', coordinate: 150 },
+      { value: '400', coordinate: 200 },
+      { value: '500', coordinate: 250 },
+      { value: '600', coordinate: 300 },
     ];
 
     return (
@@ -17,11 +24,15 @@ export default React.createClass({
         <PolarRadiusAxis
           cx={500}
           cy={500}
-          angle={120}
+          angle={30}
           ticks={ticks}
-        />
+          cursor="pointer"
+          onMouseEnter={this.handleActive}
+        >
+          <Label position="outside" offset={20}>test</Label>
+        </PolarRadiusAxis>
       </Surface>
     );
   }
-});
+}
 

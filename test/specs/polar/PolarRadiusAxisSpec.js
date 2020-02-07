@@ -26,7 +26,7 @@ describe('<PolarRadiusAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-polar-radius-axis-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-polar-radius-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
   it('Renders 5 ticks when orientation is set to be left', () => {
@@ -43,14 +43,14 @@ describe('<PolarRadiusAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-polar-radius-axis-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-polar-radius-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
   it('Renders 5 ticks when tick is set to be a function', () => {
     const renderTick = (props) => {
       const { payload, x, y, fill } = props;
 
-      return <text x={x} y={y} className="customized-tick">{payload.value}</text>
+      return <text x={x} y={y} className="customized-tick">{payload.value}</text>;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -66,14 +66,14 @@ describe('<PolarRadiusAxis />', () => {
     );
 
     expect(wrapper.find('.customized-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-polar-radius-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
   it('Renders 5 ticks when tick is set to be a react element', () => {
     const Tick = (props) => {
       const { payload, x, y, fill } = props;
 
-      return <text x={x} y={y} className="customized-tick">{payload.value}</text>
+      return <text x={x} y={y} className="customized-tick">{payload.value}</text>;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -89,14 +89,14 @@ describe('<PolarRadiusAxis />', () => {
     );
 
     expect(wrapper.find('.customized-tick').length).to.equal(5);
-    expect(wrapper.find('.recharts-polar-radius-axis-label').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(1);
   });
 
   it('Renders label when label is set to be a function', () => {
     const renderLabel = (props) => {
       const { x, y } = props;
 
-      return <text x={x} y={y} className="customized-label">any</text>
+      return <text x={x} y={y} className="customized-label">any</text>;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -117,7 +117,7 @@ describe('<PolarRadiusAxis />', () => {
     const Label = (props) => {
       const { x, y } = props;
 
-      return <text x={x} y={y} className="customized-label">any</text>
+      return <text x={x} y={y} className="customized-label">any</text>;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -149,6 +149,6 @@ describe('<PolarRadiusAxis />', () => {
     );
 
     expect(wrapper.find('.recharts-polar-radius-axis-tick').length).to.equal(0);
-    expect(wrapper.find('.recharts-polar-radius-axis-label').length).to.equal(0);
+    expect(wrapper.find('.recharts-label').length).to.equal(0);
   });
 });

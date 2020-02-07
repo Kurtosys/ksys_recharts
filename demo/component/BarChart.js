@@ -1,17 +1,19 @@
-import React, { PropTypes } from 'react';
+/* eslint-disable react/no-multi-comp */
+import React, { Component } from 'react';
 import { BarChart, Bar, Brush, Cell, CartesianGrid, ReferenceLine, ReferenceDot,
-  XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { scaleOrdinal, schemeCategory10 } from 'd3-scale';
+  XAxis, YAxis, Tooltip, Legend, ErrorBar, LabelList } from 'recharts';
+import { scaleOrdinal } from 'd3-scale';
+import { schemeCategory10 } from 'd3-scale-chromatic';
 import _ from 'lodash';
 import { changeNumberOfData } from './utils';
 
 const colors = scaleOrdinal(schemeCategory10).range();
 
 const data = [
-  { name: 'food', uv: 2400, pv: 2013, amt: 4500, time: 1 },
-  { name: 'cosmetic', uv: 3300, pv: 2000, amt: 6500, time: 2 },
-  { name: 'storage', uv: 3200, pv: 1398, amt: 5000, time: 3 },
-  { name: 'digital', uv: 2800, pv: 2800, amt: 4000, time: 4 },
+  { name: 'food', uv: 2000, pv: 2013, amt: 4500, time: 1, uvError: [100, 50], pvError: [110, 20] },
+  { name: 'cosmetic', uv: 3300, pv: 2000, amt: 6500, time: 2, uvError: 120, pvError: 50 },
+  { name: 'storage', uv: 3200, pv: 1398, amt: 5000, time: 3, uvError: [120, 80], pvError: [200, 100] },
+  { name: 'digital', uv: 2800, pv: 2800, amt: 4000, time: 4, uvError: 100, pvError: 30 },
 ];
 
 const data01 = [
@@ -87,24 +89,39 @@ const data02 = [
   { name: '201511', uv: 3.27, pv: 6.74 },
 ];
 
+const rangeData = [
+  { day: '05-01', temperature: [-1, 10] },
+  { day: '05-02', temperature: [2, 15] },
+  { day: '05-03', temperature: [3, 12] },
+  { day: '05-04', temperature: [4, 12] },
+  { day: '05-05', temperature: [12, 16] },
+  { day: '05-06', temperature: [5, 16] },
+  { day: '05-07', temperature: [3, 12] },
+  { day: '05-08', temperature: [0, 8] },
+  { day: '05-09', temperature: [-3, 5] },
+];
+
 const RenderLabel = (props) => {
   const { x, y, textAnchor, key, value, index, ...others } = props;
 
-  return (
-    <text x={x} y={y} dy={-10} textAnchor={textAnchor} key={key}>
-      {_.isArray(value) ? value[1] : value}
-    </text>
-  );
-};
+  if (x === +x && y === +y) {
+    return (
+      <text x={x} y={y} dy={-10} textAnchor={textAnchor} key={key}>
+        {_.isArray(value) ? value[1] : value}
+      </text>
+    );
+  }
 
-const CustomTick = function() {
+  return null;
+};
+const CustomTick = function () {
   const { payload, x, y } = this.props;
 
   return <text x={x} y={y} fill="#666" textAnchor="middle" dy={-4}>{payload.province}</text>;
 };
 
-const CustomAxisTick = function() {
-  const {x, y, payload} = this.props;
+const CustomAxisTick = function () {
+  const { x, y, payload } = this.props;
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -115,38 +132,48 @@ const CustomAxisTick = function() {
 
 const CustomBar = (props) => {
   const { x, y, width, height, fill } = props;
-  const path = `M${x},${y + height}
+
+  if (x === +x && y === +y) {
+    const path = `M${x},${y + height}
           C${x + width / 3},${y + height} ${x + width / 2},${y + height / 3} ${x + width / 2}, ${y}
           C${x + width / 2},${y + height / 3} ${x + 2 * width / 3},${y + height} ${x + width}, ${y + height}
           Z`;
 
-  return <path d={path} stroke='none' fill={fill}/>;
+    return <path d={path} stroke="none" fill={fill} />;
+  }
+
+  return null;
 };
 
-const BarTwo = React.createClass({
-  getPath () {
+class BarTwo extends Component {
+  getPath() {
     const { x, y, width, height } = this.props;
-    const extend = width * 0.2;
 
-    return `M${x - extend},${y + height}
-            C${x - extend + width / 3},${y + height} ${x + width / 6},${y} ${x + width / 2}, ${y}
-            C${x + 5 * width / 6},${y} ${x + extend + 2 * width / 3},${y + height} ${x + width + extend}, ${y + height}
-            Z`;
-  },
+    if (x === +x && y === +y) {
+      const extend = width * 0.2;
 
-  render () {
-    const {fill, fillOpacity} = this.props;
+      return `M${x - extend},${y + height}
+              C${x - extend + width / 3},${y + height} ${x + width / 6},${y} ${x + width / 2}, ${y}
+              C${x + 5 * width / 6},${y} ${x + extend + 2 * width / 3},${y + height} ${x + width + extend}, ${y + height}
+              Z`;
+    }
 
-    return <path d={this.getPath()} stroke='none' fillOpacity={fillOpacity} fill={fill}/>;
+    return null;
   }
-});
 
-const CustomAxis = React.createClass({
-  getIcon () {
+  render() {
+    const { fill, fillOpacity } = this.props;
+
+    return <path d={this.getPath()} stroke="none" fillOpacity={fillOpacity} fill={fill} />;
+  }
+}
+
+class CustomAxis extends Component {
+  getIcon() {
     const { x, y, payload } = this.props;
     let icon;
 
-    switch(payload.value) {
+    switch (payload.value) {
       case 'food':
         icon = (
           <svg x={x - 10} y={y} width={20} height={20} version="1.1" viewBox="0 0 1024 1024">
@@ -178,7 +205,7 @@ const CustomAxis = React.createClass({
     }
 
     return icon;
-  },
+  }
 
   render() {
     const { x, y, payload } = this.props;
@@ -188,38 +215,66 @@ const CustomAxis = React.createClass({
         {this.getIcon()}
         <text textAnchor="middle" x={x} y={y} dy={34}>{payload.value}</text>
       </g>
-    )
+    );
   }
-});
+}
 
-const initilaState = {
+const initialState = {
   data,
   data01,
   data02,
 };
 
-export default React.createClass({
-  displayName: 'BarChartDemo',
+export default class Demo extends Component {
 
-  getInitialState() {
-    return initilaState;
-  },
+  static displayName = 'BarChartDemo';
 
-  handleChangeData() {
-    this.setState(() => _.mapValues(initilaState, changeNumberOfData));
-  },
+  state = initialState;
 
-  handlePvBarClick(data, index, e) {
+  handleChangeData = () => {
+    this.setState(() => _.mapValues(initialState, changeNumberOfData));
+  };
+
+  handlePvBarClick = (data, index, e) => {
     console.log(`Pv Bar (${index}) Click: `, data);
-  },
+  };
 
-  handleBarAnimationStart() {
+  handleBarAnimationStart = () => {
     console.log('Animation start');
-  },
+  };
 
-  handleBarAnimationEnd() {
+  handleBarAnimationEnd = () => {
     console.log('Animation end');
-  },
+  };
+
+  handleMoreData = () => {
+    const { data } = this.state;
+    const count = data.length;
+    console.log(count);
+
+    this.setState({
+      data: [...data, ..._.range(1 + Math.ceil(data.length * Math.random())).map((entry, index) => {
+        console.log(index);
+        return {
+          name: `random${Math.random()}`.slice(0, 10),
+          uv: 3000 * Math.random(),
+          pv: 3000 * Math.random(),
+          amt: 5000 * Math.random(),
+          time: count + index,
+          uvError: 100 * Math.random(),
+          pvError: 50 * Math.random()
+        };
+      })],
+    });
+  };
+
+  handleLessData = () => {
+    const { data } = this.state;
+
+    this.setState({
+      data: data.slice(0, Math.ceil(data.length * Math.random())),
+    });
+  };
 
   render() {
     const { data, data01, data02 } = this.state;
@@ -233,42 +288,76 @@ export default React.createClass({
         >
           change data
         </a>
-        <br/>
+        <br />
 
         <p>BarChart of layout vertical</p>
         <div className="bar-chart-wrapper">
-          <BarChart width={400} height={400} data={data} layout="vertical" maxBarSize={10} >
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category"/>
+          <BarChart width={400} height={400} data={data.slice(0, 1)} maxBarSize={10}>
+            <XAxis padding={{ left: 20, right: 100 }} type="number" dataKey="time" />
+            <YAxis type="number" />
             <CartesianGrid horizontal={false} />
-            <Bar dataKey="uv" fill="#ff7300" maxBarSize={15} />
-            <Bar dataKey="pv" fill="#387908" />
             <Tooltip />
+            <Bar dataKey="uv" fill="#ff7300" maxBarSize={15} isAnimationActive={false} />
+            <Bar dataKey="pv" fill="#387908" />
           </BarChart>
         </div>
 
         <p>Simple BarChart (Click on rectangles and open console )</p>
-        <div className="bar-chart-wrapper" style={{textAlign: 'right'}}>
+        <p>
+          <a onClick={this.handleMoreData}>more data</a>
+          <span style={{ margin: '0 20px' }}>|</span>
+          <a onClick={this.handleLessData}>less data</a>
+        </p>
+        <div className="bar-chart-wrapper" style={{ textAlign: 'right' }}>
           <BarChart width={400} height={400} data={data} onClick={this.handlePvBarClick}>
             <XAxis dataKey="name" />
             <YAxis yAxisId="a" />
             <YAxis yAxisId="b" orientation="right" />
             <Legend />
             <Tooltip />
-            <CartesianGrid vertical={false}/>
-            <Bar yAxisId="a" dataKey="uv" label={<RenderLabel />} onAnimationStart={this.handleBarAnimationStart} onAnimationEnd={this.handleBarAnimationEnd} >
+            <CartesianGrid vertical={false} />
+            <Bar yAxisId="a" dataKey="uv" onAnimationStart={this.handleBarAnimationStart} onAnimationEnd={this.handleBarAnimationEnd}>
+              <LabelList fill="#000" angle={-45} />
               {
                 data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % 20]}/>
+                  <Cell key={`cell-${index}`} fill={colors[index % 20]} />
                 ))
               }
             </Bar>
             <Bar yAxisId="b" dataKey="pv" label>
               {
                 data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % 20]}/>
+                  <Cell key={`cell-${index}`} fill={colors[index % 20]} />
                 ))
               }
+            </Bar>
+          </BarChart>
+        </div>
+
+        <p>BarChart with error bars</p>
+        <div className="bar-chart-wrapper" style={{ textAlign: 'right' }}>
+          <BarChart width={400} height={400} data={data} onClick={this.handlePvBarClick}>
+            <XAxis dataKey="name" />
+            <YAxis yAxisId="a" />
+            <YAxis yAxisId="b" orientation="right" />
+            <Legend />
+            <Tooltip />
+            <CartesianGrid vertical={false} />
+            <Bar yAxisId="a" dataKey="uv" onAnimationStart={this.handleBarAnimationStart} onAnimationEnd={this.handleBarAnimationEnd}>
+              {
+                data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % 20]} />
+                ))
+              }
+              <ErrorBar dataKey="uvError" />
+            </Bar>
+            <Bar yAxisId="b" dataKey="pv" errorBar={{ errorKey: 'pvError', width: 10, strokeWidth: 1, fill: 'black' }}>
+              {
+                data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % 20]} />
+                ))
+              }
+              <ErrorBar dataKey="pvError" />
             </Bar>
           </BarChart>
         </div>
@@ -277,19 +366,19 @@ export default React.createClass({
         <p>Tiny BarChart</p>
         <div className="bar-chart-wrapper">
           <BarChart width={150} height={40} data={data}>
-            <Bar dataKey="uv" fill="#ff7300" />
+            <Bar dataKey="uv" fill="#ff7300" onClick={this.handlePvBarClick} background />
           </BarChart>
         </div>
 
         <p>BarChart of positive and negative values</p>
-        <div className="bar-chart-wrapper" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
+        <div className="bar-chart-wrapper" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
           <BarChart width={1100} height={250} barGap={2} barSize={6} data={data02} margin={{ top: 20, right: 60, bottom: 0, left: 20 }}>
             <XAxis dataKey="name" />
             <YAxis tickCount={7} />
-            <Bar dataKey="uv" fill="#ff7300" />
-            <Bar dataKey="pv" fill="#387908" />
             <Tooltip />
             <CartesianGrid />
+            <Bar dataKey="uv" fill="#ff7300" radius={[5, 5, 5, 5]} />
+            <Bar dataKey="pv" fill="#387908" radius={[5, 5, 5, 5]} />
             <Brush dataKey="name" height={30} />
             <ReferenceLine type="horizontal" value={0} stroke="#666" />
           </BarChart>
@@ -297,7 +386,7 @@ export default React.createClass({
 
         <p>BarChart of custom bar (1)</p>
         <div className="bar-chart-wrapper">
-          <BarChart width={500} height={250} barCategoryGap={0} data={data}  margin={{ top: 20, right: 20, bottom: 0, left: 20 }}>
+          <BarChart width={500} height={250} barCategoryGap={0} data={data} margin={{ top: 20, right: 20, bottom: 0, left: 20 }}>
             <XAxis dataKey="name" />
             <Bar dataKey="uv" barGap={0} fill="#ff7300" shape={CustomBar} />
           </BarChart>
@@ -306,7 +395,7 @@ export default React.createClass({
         <p>BarChart of custom bar (2)</p>
         <div className="bar-chart-wrapper">
           <BarChart width={500} height={250} barCategoryGap={0} data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <XAxis axisLine={false} tickLine={false} dataKey="name" tick={<CustomAxis />}/>
+            <XAxis axisLine={false} tickLine={false} dataKey="name" tick={<CustomAxis />} />
             <Bar dataKey="uv" barGap={0} fill="#387908" shape={<BarTwo />} label />
           </BarChart>
         </div>
@@ -317,14 +406,51 @@ export default React.createClass({
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <CartesianGrid vertical={false}/>
-            <Bar stackId="0" dataKey="uv" fill="#ff7300" label={RenderLabel} />
+            <CartesianGrid vertical={false} />
+            <Bar stackId="0" dataKey="uv" fill="#ff7300">
+              <LabelList />
+            </Bar>
             <Bar stackId="0" dataKey="pv" fill="#387908" />
-            <Bar dataKey="amt" fill="#387908" label={RenderLabel}/>
+            <Bar dataKey="amt" fill="#387908">
+              <LabelList />
+            </Bar>
             <Legend layout="vertical" />
           </BarChart>
         </div>
+
+        <p>BarChart of range values</p>
+        <div className="area-chart-wrapper">
+          <BarChart
+            width={400}
+            height={400}
+            data={rangeData}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
+            <XAxis dataKey="day" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="temperature" fill="#ff7300" />
+          </BarChart>
+        </div>
+
+        <p>Horziontal BarChart</p>
+        <div className="area-chart-wrapper">
+          <BarChart
+            width={1400}
+            height={400}
+            data={data}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+            layout="vertical"
+          >
+            <XAxis type="number" />
+            <YAxis dataKey="name" type="category" />
+            <Tooltip />
+            <Bar dataKey="uv" fill="#ff7300" maxBarSize={20} label radius={[10, 10, 10, 10]} />
+            <Bar dataKey="pv" fill="#387908" />
+          </BarChart>
+        </div>
+
       </div>
     );
   }
-});
+}

@@ -6,12 +6,15 @@ import { mount, render } from 'enzyme';
 import sinon from 'sinon';
 
 describe('<Pie />', () => {
-  const data = [
-    { name: 'A', value: 40 },
-    { name: 'B', value: 50 },
-    { name: 'C', value: 80 },
-    { name: 'D', value: 90 },
-    { name: 'E', value: 60 },
+  const sectors = [
+    {
+      cx: 250, cy: 250, innerRadius: 50, outerRadius: 100, startAngle: 0,
+      endAngle: 72, name: 'A', value: 40,
+    },
+    { cx: 250, cy: 250, innerRadius: 50, outerRadius: 100, startAngle: 72, endAngle: 144},
+    { cx: 250, cy: 250, innerRadius: 50, outerRadius: 100, startAngle: 144, endAngle: 216},
+    { cx: 250, cy: 250, innerRadius: 50, outerRadius: 100, startAngle: 216, endAngle: 288},
+    { cx: 250, cy: 250, innerRadius: 50, outerRadius: 100, startAngle: 288, endAngle: 360},
   ];
 
   it('Render 5 sectors in a simple Pie', () => {
@@ -23,18 +26,18 @@ describe('<Pie />', () => {
           cy={250}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
 
-    expect(wrapper.find('.recharts-pie-sector').length).to.equal(data.length);
+    expect(wrapper.find('.recharts-pie-sector').length).to.equal(sectors.length);
   });
 
   it('Render customized active sector when activeShape is set to be a element', () => {
-    const ActiveShape = (props) => {
-      return <Sector {...props} fill="#ff7300" className="customized-active-shape" />;
-    };
+    const ActiveShape = props =>
+      <Sector {...props} fill="#ff7300" className="customized-active-shape" />
+    ;
     const wrapper = render(
       <Surface width={500} height={500}>
         <Pie
@@ -45,7 +48,7 @@ describe('<Pie />', () => {
           cy={250}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
@@ -54,9 +57,9 @@ describe('<Pie />', () => {
   });
 
   it('Render customized active sector when activeShape is set to be a function', () => {
-    const renderActiveShape = (props) => {
-      return <Sector {...props} fill="#ff7300" className="customized-active-shape" />;
-    };
+    const renderActiveShape = props =>
+      <Sector {...props} fill="#ff7300" className="customized-active-shape" />
+    ;
     const wrapper = render(
       <Surface width={500} height={500}>
         <Pie
@@ -67,7 +70,7 @@ describe('<Pie />', () => {
           cy={250}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
@@ -81,12 +84,12 @@ describe('<Pie />', () => {
         <Pie
           isAnimationActive={false}
           activeIndex={0}
-          activeShape={{fill: '#ff7300'}}
+          activeShape={{ fill: '#ff7300' }}
           cx={250}
           cy={250}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
@@ -95,9 +98,9 @@ describe('<Pie />', () => {
   });
 
   it('Support multiple active sectors', () => {
-    const ActiveShape = (props) => {
-      return <Sector {...props} fill="#ff7300" className="customized-active-shape" />;
-    };
+    const ActiveShape = props =>
+      <Sector {...props} fill="#ff7300" className="customized-active-shape" />
+    ;
     const wrapper = render(
       <Surface width={500} height={500}>
         <Pie
@@ -108,7 +111,7 @@ describe('<Pie />', () => {
           cy={250}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
@@ -130,12 +133,12 @@ describe('<Pie />', () => {
           label={<Label />}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
 
-    expect(wrapper.find('.customized-label').length).to.equal(data.length);
+    expect(wrapper.find('.customized-label').length).to.equal(sectors.length);
   });
 
   it('Render customized label when label is set to be a function that returns the label text', () => {
@@ -152,13 +155,15 @@ describe('<Pie />', () => {
           label={Label}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
 
-    expect(wrapper.find('.recharts-pie-label-text').length).to.equal(data.length);
-    expect(wrapper.find('.recharts-pie-label-text').first().text()).to.equal('A: 40');
+    setTimeout(() => {
+      expect(wrapper.find('.recharts-pie-label-text').length).to.equal(sectors.length);
+      expect(wrapper.find('.recharts-pie-label-text').first().text()).to.equal('A: 40');
+    }, 1000);
   });
 
   it('Render customized label when label is set to be a react element', () => {
@@ -175,12 +180,12 @@ describe('<Pie />', () => {
           label={renderLabel}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
 
-    expect(wrapper.find('.customized-label').length).to.equal(data.length);
+    expect(wrapper.find('.customized-label').length).to.equal(sectors.length);
   });
 
   it('Render customized label line when labelLine is set to be a react element', () => {
@@ -199,12 +204,12 @@ describe('<Pie />', () => {
           labelLine={<LabelLine />}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
 
-    expect(wrapper.find('.customized-label-line').length).to.equal(data.length);
+    expect(wrapper.find('.customized-label-line').length).to.equal(sectors.length);
   });
 
   it('Render customized label line when labelLine is set to be a function', () => {
@@ -223,19 +228,19 @@ describe('<Pie />', () => {
           labelLine={renderLabelLine}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
         />
       </Surface>
     );
 
-    expect(wrapper.find('.customized-label-line').length).to.equal(data.length);
+    expect(wrapper.find('.customized-label-line').length).to.equal(sectors.length);
   });
 
   it('Don\'t render any sector when data is empty', () => {
     const wrapper = render(
       <Surface width={500} height={500}>
         <Pie
-          data={[]}
+          sectors={[]}
         />
       </Surface>
     );
@@ -255,7 +260,7 @@ describe('<Pie />', () => {
           cy={250}
           innerRadius={0}
           outerRadius={200}
-          data={data}
+          sectors={sectors}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           onClick={onClick}

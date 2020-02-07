@@ -1,14 +1,14 @@
 // Karma configuration
 // Generated on Wed Mar 18 2015 11:41:18 GMT+0800 (CST)
+
 'use strict';
 
-var path = require('path');
+const path = require('path');
 
-module.exports = function(config) {
-  if (process.env.RELEASE)
-    config.singleRun = true
+module.exports = function config(config) {
 
   config.set({
+    singleRun: !!process.env.RELEASE,
 
     // base path that will be used to resolve all patterns (eg. files, exclude)
     basePath: '../',
@@ -17,7 +17,7 @@ module.exports = function(config) {
     // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
     frameworks: ['mocha', 'chai'],
 
-    // list of files / patterns to l/oad in the browser
+    // list of files / patterns to load in the browser
     files: [
       { pattern: 'test/index.js', included: true, watched: false },
     ],
@@ -41,36 +41,40 @@ module.exports = function(config) {
         noParse: [
           /node_modules\/sinon\//,
         ],
-        loaders: [{
-          test: /\.js$/,
+        rules: [{
+          test: /\.(js|ts|tsx)$/,
           exclude: [
-            path.resolve('node_modules/')
+            path.resolve('node_modules/'),
           ],
-          loader: 'babel',
+          loader: 'babel-loader',
         }, {
+          type: 'javascript/auto',
           test: /\.json$/,
-          loader: 'json',
+          loader: 'json-loader',
+        }, {
+          test: /\.(ts|tsx)$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'ts-loader',
+          }
         }],
       },
       externals: {
-        'jsdom': 'window',
+        jsdom: 'window',
         'react/lib/ExecutionEnvironment': true,
-        'react/addons': true,
+        'react/addons': 'react',
         'react/lib/ReactContext': 'window',
         'text-encoding': 'window',
+        'react-addons-test-utils': 'react-dom'
       },
       resolve: {
         alias: {
-          'sinon': 'sinon/pkg/sinon',
-          'recharts': path.resolve('./src/index.js'),
+          sinon: 'sinon/pkg/sinon',
+          recharts: path.resolve('src/index.js'),
         },
+        extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
       },
     },
-
-    webpackMiddleware: {
-      stats: 'errors-only',
-    },
-
     plugins: [
       'karma-webpack',
       'karma-mocha',
@@ -79,7 +83,7 @@ module.exports = function(config) {
       'karma-sourcemap-loader',
       'karma-firefox-launcher',
       'karma-chrome-launcher',
-      'karma-coveralls'
+      'karma-coveralls',
     ],
 
     // test results reporter to use
@@ -91,13 +95,13 @@ module.exports = function(config) {
       dir: 'test',
       reporters: [{
         type: 'html',
-        subdir: 'coverage'
+        subdir: 'coverage',
       }, {
         type: 'text',
       }, {
         type: 'lcov',
-        subdir: 'coverage'
-      }]
+        subdir: 'coverage',
+      }],
     },
 
     webpackMiddleware: {
@@ -112,7 +116,8 @@ module.exports = function(config) {
     colors: true,
 
     // level of logging
-    // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
+    // possible values: config.LOG_DISABLE || config.LOG_ERROR ||
+    // config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
     logLevel: config.LOG_INFO,
 
     // start these browsers

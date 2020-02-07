@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { changeNumberOfData } from './utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   Line, LineChart, Legend, ResponsiveContainer, PieChart, Pie, Bar,
@@ -159,18 +159,17 @@ const data09 = [
   { name: 'Page G', uv: 3490 },
 ];
 
-const initilaState = { data, data01, data02 };
+const initialState = { data, data01, data02 };
 
-export default React.createClass({
-  displayName: 'AreaChartDemo',
+export default class Demo extends Component {
 
-  getInitialState() {
-    return initilaState;
-  },
+  static displayName = 'ResponsiveContainerDemo';
 
-  handleChangeData() {
-    this.setState(() => _.mapValues(initilaState, changeNumberOfData));
-  },
+  state = initialState;
+
+  handleChangeData = () => {
+    this.setState(() => _.mapValues(initialState, changeNumberOfData));
+  };
 
   render() {
     const { data, data01, data02 } = this.state;
@@ -214,7 +213,7 @@ export default React.createClass({
         <div className="pie-chart-wrapper" style={{ width: '100%', height: '400px', backgroundColor: '#f5f5f5' }}>
           <ResponsiveContainer>
             <PieChart>
-              <Pie data={data03} nameKey="name" valueKey="v" innerRadius="45%" outerRadius="80%" />
+              <Pie data={data03} nameKey="name" dataKey="v" innerRadius="45%" outerRadius="80%" />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -378,5 +377,5 @@ export default React.createClass({
         </div>
       </div>
     );
-  },
-});
+  }
+}

@@ -1,37 +1,49 @@
-var path = require('path');
-var LodashModuleReplacementPlugin = require('lodash-webpack-plugin');
-var webpack = require('webpack');
-var env = process.env.NODE_ENV;
+const path = require('path');
+const webpack = require('webpack');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
-var config = {
+const env = process.env.NODE_ENV;
+
+const config = {
   entry: './src/index.js',
 
   output: {
+    path: path.resolve(__dirname, 'umd'),
     library: 'Recharts',
     libraryTarget: 'umd',
   },
 
   module: {
-    loaders: [{
-      test: /\.(js|jsx)$/,
-      exclude: /node_modules/,
-      include: [
-        path.resolve(__dirname, 'src'),
-      ],
-      loader: 'babel',
-      query: {
-        plugins: ['lodash'],
+    rules: [
+      {
+        test: /\.(js|jsx|ts|tsx)$/,
+        exclude: /node_modules/,
+        include: [
+          path.resolve(__dirname, 'src'),
+        ],
+        use: {
+          loader: 'babel-loader',
+          query: {
+            plugins: ['lodash'],
+          },
+        }
       },
-    }],
+      {
+        test: /\.(ts|tsx)$/,
+        exclude: /node_modules/,
+        include: [
+          path.resolve(__dirname, 'src'),
+        ],
+        use: {
+          loader: 'ts-loader',
+        }
+      }
+    ],
   },
 
+  devtool: 'inline-source-map',
   resolve: {
-    alias: {
-      react: path.resolve(__dirname, './node_modules/react'),
-      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
-      'react-addons-transition-group':
-          path.resolve(__dirname, './node_modules/react-addons-transition-group'),
-    },
+    extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
   },
 
   externals: {
@@ -45,48 +57,36 @@ var config = {
       root: 'ReactDOM',
       commonjs2: 'react-dom',
       commonjs: 'react-dom',
-      amd: 'react-dom',
+      amd: 'react-dom'
     },
-    'react-dom/server': {
-      root: 'ReactDOMServer',
-      commonjs2: 'react-dom-server',
-      commonjs: 'react-dom-server',
-      amd: 'react-dom-server',
-    },
-    'react-addons-transition-group': {
-      root: ['React', 'addons', 'TransitionGroup'],
-      commonjs2: 'react-addons-transition-group',
-      commonjs: 'react-addons-transition-group',
-      amd: 'react-addons-transition-group',
+    'prop-types': {
+      root: 'PropTypes',
+      commonjs2: 'prop-types',
+      commonjs: 'prop-types',
+      amd: 'prop-types',
     },
   },
 
   plugins: [
-    new LodashModuleReplacementPlugin({
-      collections: true,
-      shorthands: true
-    }),
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(env),
     }),
   ],
 };
 
-if (env === 'production') {
+if (env === 'analyse') {
   config.plugins.push(
-    new webpack.optimize.UglifyJsPlugin({
-      compressor: {
-        pure_getters: true,
-        unsafe: true,
-        unsafe_comps: true,
-        warnings: false,
-      },
-      output: {
-        comments: false,
-      },
-      sourceMap: false,
-    })
+    new BundleAnalyzerPlugin()
   );
+}
+
+if (env === 'development') {
+  config.mode = 'development';
+  config.devtool = 'source-map';
+}
+
+if (env === 'production') {
+  config.mode = 'production';
 }
 
 module.exports = config;

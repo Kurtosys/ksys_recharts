@@ -25,9 +25,9 @@ describe('<XAxis />', () => {
   it('Render 1 x-CartesianAxis and 1 y-CartesianAxis ticks in ScatterChart', () => {
     const wrapper = mount(
       <ScatterChart width={400} height={400} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-        <XAxis dataKey={"x"} name="stature" unit="cm"/>
-        <YAxis dataKey={"y"} name="weight" unit="kg"/>
-        <Scatter name="A school" data={data} fill="#ff7300"/>
+        <XAxis dataKey={'x'} name="stature" unit="cm" />
+        <YAxis dataKey={'y'} name="weight" unit="kg" />
+        <Scatter name="A school" data={data} fill="#ff7300" />
       </ScatterChart>
     );
     expect(wrapper.find(CartesianAxis).length).to.equal(2);
@@ -36,7 +36,7 @@ describe('<XAxis />', () => {
   it('Don\'t render anything', () => {
     const wrapper = render(
       <Surface width={500} height={500}>
-        <XAxis dataKey={"x"} name="stature" unit="cm"/>
+        <XAxis dataKey={'x'} name="stature" unit="cm" />
       </Surface>
     );
 
@@ -47,8 +47,8 @@ describe('<XAxis />', () => {
   it('Don\'t render x-axis when hide is setted to be true', () => {
     const wrapper = render(
       <LineChart width={400} height={400} data={lineData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-        <XAxis hide/>
-        <Line type="monotone" dataKey="uv" stroke="#ff7300"/>
+        <XAxis hide />
+        <Line type="monotone" dataKey="uv" stroke="#ff7300" />
       </LineChart>
     );
     expect(wrapper.find('.recharts-x-axis').length).to.equal(0);
@@ -57,10 +57,62 @@ describe('<XAxis />', () => {
   it('Render ticks of XAxis when specify ticks', () => {
     const wrapper = render(
       <LineChart width={400} height={400} data={lineData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-        <XAxis ticks={[0, 4]}/>
-        <Line type="monotone" dataKey="uv" stroke="#ff7300"/>
+        <XAxis ticks={[0, 4]} />
+        <Line type="monotone" dataKey="uv" stroke="#ff7300" />
       </LineChart>
     );
-    expect(wrapper.find('.recharts-x-axis .recharts-cartesian-axis-tick').length).to.equal(2);
+    expect(wrapper.find('.xAxis .recharts-cartesian-axis-tick').length).to.equal(2);
+  });
+
+  it('Render duplicated ticks of XAxis', () => {
+    const lineData = [
+      {name: "03/07/2017", balance: 23126.11},
+      {name: "03/02/2017", balance: 23137.39},
+      {name: "03/01/2017", balance: 24609.55},
+      {name: "03/01/2017", balance: 26827.66},
+      {name: "02/24/2017", balance: 26807.66},
+      {name: "02/21/2017", balance: 23835.62},
+      {name: "02/16/2017", balance: 23829.62}
+    ];
+
+    const wrapper = render(
+      <LineChart
+        width={600}
+        height={300}
+        data={lineData}
+        margin={{top: 5, right: 30, left: 20, bottom: 5}}
+      >
+        <XAxis dataKey="name" interval={0} />
+        <YAxis/>
+        <Line type="monotone" dataKey="balance" stroke="#8884d8" activeDot={{r: 8}}/>
+      </LineChart>
+    );
+    expect(wrapper.find('.recharts-xAxis .recharts-cartesian-axis-tick').length).to.equal(lineData.length);
+  });
+
+  it('Render duplicated ticks of XAxis', () => {
+    const lineData = [
+      {name: "03/07/2017", balance: 23126.11},
+      {name: "03/02/2017", balance: 23137.39},
+      {name: "03/01/2017", balance: 24609.55},
+      {name: "03/01/2017", balance: 26827.66},
+      {name: "02/24/2017", balance: 26807.66},
+      {name: "02/21/2017", balance: 23835.62},
+      {name: "02/16/2017", balance: 23829.62}
+    ];
+
+    const wrapper = render(
+      <LineChart
+        width={600}
+        height={300}
+        data={lineData}
+        margin={{top: 5, right: 30, left: 20, bottom: 5}}
+      >
+        <XAxis dataKey="name" scale="time" interval={0} />
+        <YAxis/>
+        <Line type="monotone" dataKey="balance" stroke="#8884d8" activeDot={{r: 8}}/>
+      </LineChart>
+    );
+    expect(wrapper.find('.recharts-xAxis .recharts-cartesian-axis-tick').length).to.equal(lineData.length);
   });
 });

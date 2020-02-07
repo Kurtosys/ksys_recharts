@@ -1,4 +1,3 @@
-import ReactDOM from 'react-dom';
 import React from 'react';
 import { shallow, render } from 'enzyme';
 import { expect } from 'chai';
@@ -15,7 +14,7 @@ describe('<Text />', () => {
 
   it('Wraps long text if not enough width', () => {
     const wrapper = shallow(
-      <Text width={200} style={{ fontFamily: 'Courier' }}>This is really long text</Text>
+      <Text width={200} style={{ fontFamily: 'Courier' }}>This is really long text for 200px</Text>
     );
 
     expect(wrapper.instance().state.wordsByLines.length).to.equal(2);
@@ -43,7 +42,9 @@ describe('<Text />', () => {
       <Text x={0} y={0} width={30}>{0}</Text>
     );
 
-    expect(wrapper.text()).to.contain("0");
+    setTimeout(() => {
+      expect(wrapper.text()).to.contain('0');
+    }, 1000);
   });
 
   it('Render 0 success when not specify the width', () => {
@@ -51,6 +52,35 @@ describe('<Text />', () => {
       <Text x={0} y={0}>{0}</Text>
     );
 
-    expect(wrapper.text()).to.contain("0");
+    setTimeout(() => {
+      expect(wrapper.text()).to.contain('0');
+    }, 1000);
+  });
+
+  it('Render text when x or y is a percentage', () => {
+    const wrapper = render(
+      <Text x="50%" y="50%">anything</Text>
+    );
+
+    setTimeout(() => {
+      expect(wrapper.text()).to.contain('anything');
+    }, 1000);
+  });
+
+  it("Don't Render text when x or y is NaN ", () => {
+    const wrapperNan = render(
+      <Text x={NaN} y={10}>anything</Text>
+    );
+
+    expect(wrapperNan.text()).to.not.contain('anything');
+  });
+
+  it('Only split contents on breaking spaces', () => {
+    const testString = 'These spaces\tshould\nbreak,\rbut\xA0these\xA0should\xA0not.';
+    const wrapper = shallow(
+      <Text width="auto">{testString}</Text>
+    );
+
+    expect(wrapper.instance().state.wordsByLines.length).to.equal(5);
   });
 });

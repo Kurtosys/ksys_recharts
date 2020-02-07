@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { Component } from 'react';
 import { changeNumberOfData } from './utils';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Brush, Legend,
-  ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer } from 'recharts';
+  ReferenceArea, ReferenceLine, ReferenceDot, ResponsiveContainer,
+  LabelList, Label } from 'recharts';
 
 const data = [
   { name: 'Page A', uv: 4000, pv: 2400, amt: 2400, time: 1 },
@@ -31,43 +32,47 @@ const data02 = [
   { name: 'Page E', uv: 1890, pv: 4800, amt: 2181 },
 ];
 
-const initilaState = { data, data01, data02 };
+const rangeData = [
+  { day: '05-01', temperature: [-1, 10] },
+  { day: '05-02', temperature: [2, 15] },
+  { day: '05-03', temperature: [3, 12] },
+  { day: '05-04', temperature: [4, 12] },
+  { day: '05-05', temperature: [12, 16] },
+  { day: '05-06', temperature: [5, 16] },
+  { day: '05-07', temperature: [3, 12] },
+  { day: '05-08', temperature: [0, 8] },
+  { day: '05-09', temperature: [-3, 5] },
+];
 
-const CustomTooltip = React.createClass({
-  render() {
-    const { active, payload, external, label } = this.props;
+const initialState = { data, data01, data02 };
 
-    if (active) {
-      const style = {
-        padding: 6,
-        backgroundColor: '#fff',
-        border: '1px solid #ccc',
-      };
+const CustomTooltip = (props) => {
+  const { active, payload, external, label } = props;
 
-      const currData = external.filter(entry => (entry.name === label))[0];
+  if (active) {
+    const style = {
+      padding: 6,
+      backgroundColor: '#fff',
+      border: '1px solid #ccc',
+    };
 
-      return (
-        <div className="area-chart-tooltip" style={style}>
-          <p>{payload[0].name + ' : '}<em>{payload[0].value}</em></p>
-          <p>{'uv : '}<em>{currData.uv}</em></p>
-        </div>
-      );
-    }
+    const currData = external.filter(entry => (entry.name === label))[0];
 
-    return null;
-  },
-});
+    return (
+      <div className="area-chart-tooltip" style={style}>
+        <p>{payload[0].name + ' : '}<em>{payload[0].value}</em></p>
+        <p>{'uv : '}<em>{currData.uv}</em></p>
+      </div>
+    );
+  }
+
+  return null;
+};
 
 const renderCustomizedActiveDot = (props) => {
   const { cx, cy, stroke, index, dataKey } = props;
 
   return <path d={`M${cx - 2},${cy - 2}h4v4h-4Z`} fill={stroke} key={`dot-${dataKey}`}/>;
-};
-
-const renderLabel = (props) => {
-  const { x, y, textAnchor, value, index } = props;
-
-  return <text x={x} y={y} dy={-10} textAnchor={textAnchor} key={`label-${index}`}>{value[1]}</text>
 };
 
 const RenderRect = (props) => {
@@ -83,17 +88,21 @@ function CustomizedAxisTick(props) {
     </g>
   );
 }
+const renderLabel = (props) => {
+  const { index, x, y } = props;
 
-export default React.createClass({
-  displayName: 'AreaChartDemo',
+  return <text x={x} y={y} className="customized-label">{index}</text>;
+};
 
-  getInitialState() {
-    return initilaState;
-  },
+export default class AreaChartDemo extends Component {
 
-  handleChangeData() {
-    this.setState(() => _.mapValues(initilaState, changeNumberOfData));
-  },
+  static displayName = 'AreaChartDemo';
+
+  state = initialState;
+
+  handleChangeData = () => {
+    this.setState(() => _.mapValues(initialState, changeNumberOfData));
+  };
 
   render() {
     const { data, data01, data02 } = this.state;
@@ -115,7 +124,9 @@ export default React.createClass({
             margin={{ top: 20, right: 80, left: 20, bottom: 5 }}
             syncId="test"
           >
-            <XAxis dataKey="time" type="number" label="province"/>
+            <XAxis dataKey="time" type="number">
+              <Label position="insideTopRight" offset={-30}>province</Label>
+            </XAxis>
             <YAxis />
             <Tooltip />
             <Area
@@ -125,9 +136,11 @@ export default React.createClass({
               stroke="#ff7300"
               fill="#ff7300"
               dot
-              label={renderLabel}
               activeDot={renderCustomizedActiveDot}
-            />
+              hide
+            >
+              <LabelList position="top" />
+            </Area>
             <Area
               stackId="0"
               type="monotone"
@@ -136,6 +149,7 @@ export default React.createClass({
               fill="#82ca9d"
               dot
               activeDot={renderCustomizedActiveDot}
+              label={renderLabel}
             />
             <Area
               stackId="0"
@@ -146,11 +160,12 @@ export default React.createClass({
               animationBegin={1300}
               dot
               activeDot={renderCustomizedActiveDot}
-            />
-            <Legend layout="vertical" />
+            >
+              <LabelList position="top" />
+            </Area>
+            <Legend layout="vertical" align="left" verticalAlign="middle" />
           </AreaChart>
         </div>
-
 
         <p>Stacked AreaChart | Stack Offset Expand</p>
         <div className="area-chart-wrapper">
@@ -167,19 +182,21 @@ export default React.createClass({
               dataKey="uv"
               stroke="#ff7300"
               fill="#ff7300"
-              label={renderLabel}
               dot
               activeDot={renderCustomizedActiveDot}
-            />
+            >
+              <LabelList position="top" />
+            </Area>
             <Area stackId="0"
               type="monotone"
               dataKey="pv"
               stroke="#387908"
               fill="#387908"
-              animationBegin={1300}
               dot
               activeDot={renderCustomizedActiveDot}
-            />
+            >
+              <LabelList />
+            </Area>
           </AreaChart>
         </div>
 
@@ -189,7 +206,9 @@ export default React.createClass({
             margin={{ top: 20, right: 80, left: 20, bottom: 5 }}
             stackOffset="silhouette"
           >
-            <XAxis dataKey="name" label="province" />
+            <XAxis dataKey="name">
+              <Label position="insideBottom">province</Label>
+            </XAxis>
             <YAxis />
             <Tooltip />
             <Area stackId="0"
@@ -197,16 +216,16 @@ export default React.createClass({
               dataKey="uv"
               stroke="#ff7300"
               fill="#ff7300"
-              label={renderLabel}
               dot
               activeDot={renderCustomizedActiveDot}
-            />
+            >
+              <LabelList position="top" />
+            </Area>
             <Area stackId="0"
               type="monotone"
               dataKey="pv"
               stroke="#387908"
               fill="#387908"
-              animationBegin={1300}
               dot
               activeDot={renderCustomizedActiveDot}
             />
@@ -231,14 +250,20 @@ export default React.createClass({
             data={data}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
-            <YAxis label="uv" type="number" yAxisId={0} stroke="#ff7300" />
-            <YAxis label="pv" type="number" orientation="right" yAxisId={1} stroke="#387908" />
-            <YAxis label="amt"
+            <YAxis type="number" yAxisId={0} stroke="#ff7300">
+              <Label position="top" offset={10}>uv</Label>
+            </YAxis>
+            <YAxis type="number" orientation="right" yAxisId={1} stroke="#387908">
+              <Label position="top" offset={10}>pv</Label>
+            </YAxis>
+            <YAxis
               type="number"
               orientation="right"
               yAxisId={2}
               stroke="#38abc8"
-            />
+            >
+              <Label position="top" offset={10}>amt</Label>
+            </YAxis>
             <XAxis dataKey="name" interval={0}/>
             <Area dataKey="uv" stroke="#ff7300" fill="#ff7300" strokeWidth={2} yAxisId={0} />
             <Area dataKey="pv" stroke="#387908" fill="#387908" strokeWidth={2} yAxisId={1} />
@@ -306,7 +331,9 @@ export default React.createClass({
                 <stop offset="95%" stopColor="rgba(0, 136, 254, 0)" />
               </linearGradient>
             </defs>
-            <XAxis dataKey="name" label="province" />
+            <XAxis dataKey="name">
+              <Label position="insideBottom" value="province" />
+            </XAxis>
             <YAxis />
             <Tooltip />
             <Area
@@ -332,7 +359,23 @@ export default React.createClass({
             <Area type="stepAfter" dataKey="weather" stroke="#0088FE" />
           </AreaChart>
         </div>
+
+        <p>AreaChart of range values</p>
+        <div className="area-chart-wrapper">
+          <AreaChart
+            width={400}
+            height={400}
+            data={rangeData}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
+            <XAxis dataKey="day" />
+            <YAxis />
+            <Tooltip />
+            <Area dataKey="temperature" stroke="#0088FE" />
+          </AreaChart>
+        </div>
+
       </div>
     );
-  },
-});
+  }
+};

@@ -1,6 +1,5 @@
-import ReactDOM from 'react-dom';
 import React from 'react';
-import { mount, render } from 'enzyme';
+import { mount } from 'enzyme';
 import { expect } from 'chai';
 import { Surface, Cell } from 'recharts';
 
@@ -9,7 +8,6 @@ describe('<Cell />', () => {
     const wrapper = mount(
       <Cell />
     );
-
-    expect(wrapper.props().children).to.be.empty;
+    expect(wrapper.props().children).to.be.undefined;
   });
 });

@@ -17,7 +17,7 @@ describe('<PieChart />', () => {
   it('Renders 6 sectors circles in simple PieChart', () => {
     const wrapper = render(
       <PieChart width={800} height={400}>
-        <Pie isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label/>
+        <Pie dataKey="value" isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label />
       </PieChart>
     );
 
@@ -27,10 +27,10 @@ describe('<PieChart />', () => {
   it('Renders 6 sectors circles when add Cell to specified props of eact slice', () => {
     const wrapper = render(
       <PieChart width={800} height={400}>
-        <Pie isAnimationActive={false} cx={200} cy={200} outerRadius={80} fill="#ff7300" label>
+        <Pie dataKey="value" isAnimationActive={false} cx={200} cy={200} outerRadius={80} fill="#ff7300" label>
           {
             data.map((entry, index) => (
-              <Cell {...entry}  key={`cell-${index}`} strokeWidth={index + 1}/>
+              <Cell {...entry} key={`cell-${index}`} strokeWidth={index + 1} />
             ))
           }
         </Pie>
@@ -40,10 +40,29 @@ describe('<PieChart />', () => {
     expect(wrapper.find('.recharts-pie-sector').length).to.equal(6);
   });
 
+  it('Renders legend when all the values are 0', () => {
+    const emptyData = [
+      { name: 'Group A', value: 0 },
+      { name: 'Group B', value: 0 },
+      { name: 'Group C', value: 0 },
+      { name: 'Group D', value: 0 },
+      { name: 'Group E', value: 0 },
+      { name: 'Group F', value: 0 },
+    ];
+    const wrapper = render(
+      <PieChart width={800} height={400}>
+        <Pie dataKey="value" data={emptyData} isAnimationActive={false} cx={200} cy={200} outerRadius={80} />
+        <Legend />
+      </PieChart>
+    );
+
+    expect(wrapper.find('.recharts-legend-item').length).to.equal(emptyData.length);
+  });
+
   it('Don\'t renders any sectors when width or height is smaller than 0', () => {
     const wrapper = render(
       <PieChart width={0} height={400}>
-        <Pie isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label/>
+        <Pie dataKey="value" isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label />
       </PieChart>
     );
     expect(wrapper.find('.recharts-pie-sector').length).to.equal(0);
@@ -52,8 +71,8 @@ describe('<PieChart />', () => {
   it('Renders 6 legend item when add a Legend element', () => {
     const wrapper = render(
       <PieChart width={800} height={400}>
-        <Pie isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label/>
-        <Legend/>
+        <Pie dataKey="value" isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label />
+        <Legend />
       </PieChart>
     );
 
@@ -94,7 +113,7 @@ describe('<PieChart />', () => {
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <Pie isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label/>
+        <Pie dataKey="value" isAnimationActive={false} data={data} cx={200} cy={200} outerRadius={80} fill="#ff7300" label />
       </PieChart>
     );
     const sectors = wrapper.find(Sector);

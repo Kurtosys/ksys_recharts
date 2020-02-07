@@ -36,7 +36,7 @@ describe('<Area />', () => {
     const Label = (props) => {
       const { index, x, y } = props;
 
-      return <text x={x} y={y} className="customized-label">{index}</text>
+      return <text x={x} y={y} className="customized-label">{index}</text>;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -56,7 +56,7 @@ describe('<Area />', () => {
     const renderDot = (props) => {
       const { cx, cy } = props;
 
-      return <circle x={cx} y={cy} r={5} className="customized-dot"/>
+      return <circle x={cx} y={cy} r={5} className="customized-dot" />;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -76,7 +76,7 @@ describe('<Area />', () => {
     const CustomizedDot = (props) => {
       const { cx, cy } = props;
 
-      return <circle x={cx} y={cy} r={5} className="customized-dot"/>
+      return <circle x={cx} y={cy} r={5} className="customized-dot" />;
     };
     const wrapper = render(
       <Surface width={500} height={500}>
@@ -104,5 +104,24 @@ describe('<Area />', () => {
     expect(wrapper.find('.recharts-area-area').length).to.equal(0);
     expect(wrapper.find('.recharts-area-curve').length).to.equal(0);
     expect(wrapper.find('.recharts-area-dot').length).to.equal(0);
+  });
+
+  it('renders the curve with the stroke on top (2nd) of the curve with the fill (1st)', () => {
+    const wrapper = mount(
+      <Surface width={500} height={500}>
+        <Area
+          points={data}
+          baseLine={200}
+          stroke="teal"
+          fill="teal"
+        />
+      </Surface>
+    );
+
+    expect(wrapper.find('.recharts-curve').length).to.equal(2);
+    expect(wrapper.find('.recharts-curve').first().prop('stroke')).to.equal('none');
+    expect(wrapper.find('.recharts-curve').first().prop('fill')).to.equal('teal');
+    expect(wrapper.find('.recharts-curve').last().prop('stroke')).to.equal('teal');
+    expect(wrapper.find('.recharts-curve').last().prop('fill')).to.equal('none');
   });
 });

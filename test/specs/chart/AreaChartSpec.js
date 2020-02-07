@@ -37,6 +37,21 @@ describe('<AreaChart />', () => {
     expect(wrapper.find('.recharts-area-dot').length).to.equal(1);
   });
 
+  it('Renders empty path when all the datas are null', () => {
+    const wrapper = render(
+      <AreaChart width={100} height={50} data={data}>
+        <Area type="monotone" dataKey="any" stroke="#ff7300" fill="#ff7300" />
+      </AreaChart>
+    );
+    const areaPath = wrapper.find('.recharts-area-area');
+    const curvePath = wrapper.find('.recharts-area-curve');
+
+    expect(areaPath.length).to.equal(1);
+    expect(curvePath.length).to.equal(1);
+    expect(areaPath.attr('d')).to.be.undefined;
+    expect(curvePath.attr('d')).to.be.undefined;
+  });
+
   it('Renders customized active dot when activeDot is set to be a ReactElement', () => {
     const ActiveDot = ({ cx, cy }) => <circle cx={cx} cy={cy} r={10} className="customized-active-dot" />;
     const wrapper = mount(
@@ -83,6 +98,8 @@ describe('<AreaChart />', () => {
         y: 21,
       },
     });
+
+    expect(wrapper.find('.customized-active-dot').length).to.equal(1);
   });
 
   it('Renders 4 path in a stacked AreaChart', () => {
@@ -116,8 +133,8 @@ describe('<AreaChart />', () => {
     );
     expect(wrapper.find('.recharts-area-dots').length).to.equal(1);
     expect(wrapper.find('.recharts-area-dot').length).to.equal(6);
-    expect(wrapper.find('.recharts-area-labels').length).to.equal(1);
-    expect(wrapper.find('.recharts-area-label').length).to.equal(6);
+    expect(wrapper.find('.recharts-label-list').length).to.equal(1);
+    expect(wrapper.find('.recharts-label').length).to.equal(6);
   });
 
   it('Render empty when data is empty', () => {
@@ -167,7 +184,6 @@ describe('<AreaChart /> - Pure Rendering', () => {
       <XAxis />
       <YAxis />
       <Brush />
-      <Legend layout="vertical" />
     </AreaChart>
   );
 
@@ -175,14 +191,14 @@ describe('<AreaChart /> - Pure Rendering', () => {
   it('should only render Area once when the mouse enters and moves', () => {
     const wrapper = mount(chart);
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
 
     wrapper.simulate('mouseEnter', { pageX: 30, pageY: 200 });
     wrapper.simulate('mouseMove', { pageX: 200, pageY: 200 });
     wrapper.simulate('mouseLeave');
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
   });
 
@@ -190,10 +206,10 @@ describe('<AreaChart /> - Pure Rendering', () => {
   it('should only render Area once when the brush moves but doesn\'t change start/end indices', () => {
     const wrapper = mount(chart);
 
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
     wrapper.instance().handleBrushChange({ startIndex: 0, endIndex: data.length - 1 });
-    spies.forEach((el) => expect(el.callCount).to.equal(1));
+    spies.forEach(el => expect(el.callCount).to.equal(1));
     expect(axisSpy.callCount).to.equal(2);
   });
 
